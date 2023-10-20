@@ -3,7 +3,7 @@
 #include "libmld.h"
 
 /*
-0048E078 st_read
+0048E078 func_0048E078
 */
 void st_warning(const char *format, ...) {
     va_list arglist;

@@ -44,12 +44,6 @@
 #define LARGE_DATA_AREA 3       /* data put in large data area (data,bss)   */
 #define TEXT_AREA 4             /* data put in text area */
 #define EXCEPTION_DATA_AREA 5   /* data put in exception area */
-/* LSYM, FSYM, etc alignment designation (lexlev field)
- * Four bits are reserved to designate the alignment.
- * This field occupies bits 0..3 of the lexlev field
- */
-#define SYM_ALIGNMENT_MASK 15	/* 0x0F mask to isolate this field	    */
-#define SYM_ALIGNMENT_BIT_OFS 0	/* number of bits to shift to get this field*/
 
 /* ENT flag attributes (extrnal field) */
 #define EXTERNAL_ATTR       1   /* external entry point */
@@ -68,7 +62,6 @@
 #define NOSIDEEFFECT_ATTR 1             /* indicates call has no side effect */
 #define RETURN_ATTR 2                   /* indicates call will not return */
 /* 4 used in 1.31 for reloading stack limit for ada, but then removed in 2.0 */
-#define RELOAD_STACK_ATTR 4             /* Placeholder */
 #define REALLOC_ARG_ATTR 8              /* reallocate the arg build area */
 #define GOTO_ATTR 16                    /* indicates call is the Pascal GOOB*/
 #define COMPOSITE_CALL_ATTR 32          /* call returns a composite object */
@@ -103,20 +96,6 @@
 #define OUT_MODE    2
 #define INOUT_MODE  3
 
-/* BGN pointer size (i1 field) */
-#define THIRTY2_ADDR	0	/* 32-bit pointers */
-#define SIXTY4_ADDR	1	/* 64-bit pointers */
-
-/* CIA flag attributes (lexlev field) */
-#define CIA_CALLS_ATTR		1	/* CIA contains a call */
-#define CIA_RETTYP_MASK		6	/* Make for return type */
-#define CIA_RETTYP_BIT_OFS	1	/* Number of bits to shift for this field */
-
-#define CIA_RETTYP_NONE		0	/* void return type */
-#define CIA_RETTYP_LONG		1	/* long return type */
-#define CIA_RETTYP_FLOAT	2	/* float return type */
-#define CIA_RETTYP_DOUBLE	3	/* double return type */
-
 /*****************************************************************************/
 /* This file contains all types that define U-code                           */
 /*****************************************************************************/
@@ -135,17 +114,11 @@
 #define SET_INLINE_ATTR(x) x = ((x) | INLINE_ATTR)
 #define IS_VOLATILE_ATTR(x) (((x) & VOLATILE_ATTR) != 0)
 #define SET_VOLATILE_ATTR(x) x = ((x) | VOLATILE_ATTR)
-#define IS_SCALAR8_ATTR(x) (x & SCALAR8_ATTR) 
-#define SET_SCALAR8_ATTR(x) x = (x | SCALAR8_ATTR)
-#define IS_SCALAR4_ATTR(x) (x & SCALAR4_ATTR) 
-#define SET_SCALAR4_ATTR(x) x = (x | SCALAR4_ATTR)
 #define IS_FRAMEPTR_ATTR(x) (((x) & FRAMEPTR_ATTR) != 0)
 #define SET_FRAMEPTR_ATTR(x) x = ((x) | FRAMEPTR_ATTR)
 #define IS_EXTERNAL_ATTR(x) (((x) & EXTERNAL_ATTR) != 0)
 #define IS_OVERFLOW_ATTR(x) (((x) & OVERFLOW_ATTR) != 0)
 #define SET_OVERFLOW_ATTR(x) x = ((x) | OVERFLOW_ATTR)
-
-
 #define IS_PRESERVE_STACK_ATTR(x) (((x) & PRESERVE_STACK_ATTR) != 0)
 #define SET_PRESERVE_STACK_ATTR(x) x = ((x) | PRESERVE_STACK_ATTR)
 #define IS_EXCEPTION_ATTR(x) (((x) & EXCEPTION_ATTR) != 0)
@@ -163,20 +136,12 @@
 #define IS_REALLOC_ARG_ATTR(x) (((x) & REALLOC_ARG_ATTR) != 0)
 #define SET_REALLOC_ARG_ATTR(x) x = ((x) | REALLOC_ARG_ATTR)
 
-
-#define IS_CIA_CALLS_ATTR(x) (x & CIA_CALLS_ATTR)
-#define SET_CIA_CALLS_ATTR(x) x = (x | CIA_CALLS_ATTR)
-#define SET_CIA_RETTYP(x,v) x = ((x & ~CIA_RETTYP_MASK)|(v << CIA_RETTYP_BIT_OFS))
-#define GET_CIA_RETTYP(x) ((x & CIA_RETTYP_MASK) >> CIA_RETTYP_BIT_OFS)
 #define SET_DATA_AREA(x,v) x = (((x) & ~DATA_AREA_MASK)|((v) << DATA_AREA_BIT_OFS))
 #define GET_DATA_AREA(x) (((x) & DATA_AREA_MASK) >> DATA_AREA_BIT_OFS)
-#define SET_SYM_ALIGNMENT(x,v) x = ((x & ~SYM_ALIGNMENT_MASK)|(v << SYM_ALIGNMENT_BIT_OFS))
-#define GET_SYM_ALIGNMENT(x) ((x & SYM_ALIGNMENT_MASK) >> SYM_ALIGNMENT_BIT_OFS)
 #define IS_RETURN_ATTR(x) (((x) & RETURN_ATTR) != 0)
 #define SET_RETURN_ATTR(x) x = ((x) | RETURN_ATTR)
 #define IS_NOSIDEEFFECT_ATTR(x) (((x) & NOSIDEEFFECT_ATTR) != 0)
 #define SET_NOSIDEEFFECT_ATTR(x) x = ((x) | NOSIDEEFFECT_ATTR)
-#define IS_RELOAD_STACK_ATTR(x) (((x) & RELOAD_STACK_ATTR) != 0)
 #define IS_GOTO_ATTR(x) (((x) & GOTO_ATTR) != 0)
 #define SET_GOTO_ATTR(x) x = ((x) | GOTO_ATTR)
 #define IS_COMPOSITE_CALL_ATTR(x) (((x) & COMPOSITE_CALL_ATTR) != 0)
@@ -230,11 +195,6 @@ enum Memtype {
     /* 7 */ Kmt, /* static class data member in C++   */
 };
 
-#ifdef __GNUC__
-typedef enum Memtype Memtype;
-#else
-typedef unsigned char Memtype;
-#endif
 
 
   /***************************************************************************/
@@ -247,7 +207,7 @@ union Valu {
   long long dwval;
 #endif
   struct {
-#ifdef UOPT_LITTLE_ENDIAN
+#ifdef _MIPSEL
     int dwval_l, dwval_h;
 #else /* _MIPSEB */
     int dwval_h, dwval_l;
@@ -300,34 +260,18 @@ typedef unsigned char Uopcode;
 #endif
 
 struct Bcrec   {
-#ifdef UOPT_LITTLE_ENDIAN
-          unsigned short Lexlev;
-          unsigned char  Dtype :5;
-          unsigned char  Mtype :3;
-          Uopcode Opc;
-#else
           Uopcode Opc;
           unsigned char  Mtype :3;
           unsigned char  Dtype :5;
           unsigned short  Lexlev;
-#endif
           int  I1;
           /* ------- 2 words ------- */
           union {
             struct {
-#ifdef UOPT_LITTLE_ENDIAN
-              unsigned :24; enum Datatype Dtype2:8;
-#else
               enum Datatype Dtype2:8; unsigned :24;
-#endif
             }secondty;
             struct {
-#ifdef UOPT_LITTLE_ENDIAN
-               unsigned int pad :16;
-               unsigned int Push :8, Pop :8;
-#else
                unsigned int Pop :8, Push :8;
-#endif
                unsigned int Extrnal;
             }uent;
             struct {
@@ -345,7 +289,7 @@ struct Bcrec   {
                     } dwbnds;
 #endif
                   struct {
-#ifdef UOPT_LITTLE_ENDIAN
+#ifdef _MIPSEL
                     int lbound_l, lbound_h;
                     int hbound_l, hbound_h;
 #else        /* _MIPSEB */
@@ -435,16 +379,16 @@ struct utabrec {
 };
 
 enum mtagtype {
-    /* 0 */ mtag_anything,              /* can dereference anything */
-    /* 1 */ mtag_heap,                  /* only dereference heap memory */
-    /* 2 */ mtag_readonly,              /* only dereference readonly memory */
-    /* 3 */ mtag_non_local,             /* only dereference non-local memory */
-    /* 4 */ mtag_local_stack,           /* only dereference local M memory */
-    /* 5 */ mtag_uplevel_stack,         /* only dereference up-level M memory */
-    /* 6 */ mtag_local_static,          /* only dereference FSYM symbols */
-    /* 7 */ mtag_global_static,         /* only dereference non-FSYM static symbols */
-    /* 8 */ mtag_f77_parm,              /* based on a specific f77 parameter */
-    /* 9 */ mtag_vreg                   /* only emitted by ugen */
+    mtag_anything,              /* can dereference anything */
+    mtag_heap,                  /* only dereference heap memory */
+    mtag_readonly,              /* only dereference readonly memory */
+    mtag_non_local,             /* only dereference non-local memory */
+    mtag_local_stack,           /* only dereference local M memory */
+    mtag_uplevel_stack,         /* only dereference up-level M memory */
+    mtag_local_static,          /* only dereference FSYM symbols */
+    mtag_global_static,         /* only dereference non-FSYM static symbols */
+    mtag_f77_parm,              /* based on a specific f77 parameter */
+    mtag_vreg                   /* only emitted by ugen */
 };
 
 #endif

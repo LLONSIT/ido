@@ -20,9 +20,6 @@ bool next_stmt_is_ret1(struct Statement *stmt, int addr) {
             case Uloc:
             case Unop:
                 continue;
-
-            default:
-                break;
         }
         if (stmt->opc == Uujp) {
             stmt = stmt->graphnode->successors->graphnode->stat_head;
@@ -32,15 +29,15 @@ bool next_stmt_is_ret1(struct Statement *stmt, int addr) {
             if (stmt->expr->data.isvar_issvar.assigned_value->type != isvar) {
                 return false;
             }
-            if (stmt->expr->data.isvar_issvar.assigned_value->data.isvar_issvar.location.blockno != curblk) {
+            if (stmt->expr->data.isvar_issvar.assigned_value->data.isvar_issvar.var_data.blockno != curblk) {
                 return false;
             }
-            if (stmt->expr->data.isvar_issvar.assigned_value->data.isvar_issvar.location.addr != addr) {
+            if (stmt->expr->data.isvar_issvar.assigned_value->data.isvar_issvar.var_data.addr != addr) {
                 return false;
             }
             if (stmt->expr->type == isvar) {
-                if (stmt->expr->data.isvar_issvar.location.memtype == Rmt) {
-                    if (stmt->expr->data.isvar_issvar.location.addr != r_v0) {
+                if (stmt->expr->data.isvar_issvar.var_data.memtype == Rmt) {
+                    if (stmt->expr->data.isvar_issvar.var_data.addr != r_v0) {
                         continue;
                     }
                 }
@@ -65,9 +62,6 @@ bool next_stmt_is_ret(struct Statement *stmt) {
             case Uloc:
             case Unop:
                 continue;
-
-            default:
-                break;
         }
         if (stmt->opc == Uujp) {
             stmt = stmt->graphnode->successors->graphnode->stat_head;
@@ -77,15 +71,15 @@ bool next_stmt_is_ret(struct Statement *stmt) {
             if (stmt->expr->data.isvar_issvar.assigned_value->type != isvar) {
                 return false;
             }
-            if (stmt->expr->data.isvar_issvar.assigned_value->data.isvar_issvar.location.memtype != Rmt) {
+            if (stmt->expr->data.isvar_issvar.assigned_value->data.isvar_issvar.var_data.memtype != Rmt) {
                 return false;
             }
-            if (stmt->expr->data.isvar_issvar.assigned_value->data.isvar_issvar.location.addr != r_v0) {
+            if (stmt->expr->data.isvar_issvar.assigned_value->data.isvar_issvar.var_data.addr != r_v0) {
                 return false;
             }
             if (stmt->expr->type == isvar) {
-                if (stmt->expr->data.isvar_issvar.location.memtype == Rmt) {
-                    if (stmt->expr->data.isvar_issvar.location.addr == r_v0) {
+                if (stmt->expr->data.isvar_issvar.var_data.memtype == Rmt) {
+                    if (stmt->expr->data.isvar_issvar.var_data.addr == r_v0) {
                         continue;
                     }
                 }
@@ -93,10 +87,10 @@ bool next_stmt_is_ret(struct Statement *stmt) {
             if (stmt->expr->type != isvar) {
                 return false;
             }
-            if (stmt->expr->data.isvar_issvar.location.blockno != curblk) {
+            if (stmt->expr->data.isvar_issvar.var_data.blockno != curblk) {
                 return false;
             }
-            return next_stmt_is_ret1(stmt, stmt->expr->data.isvar_issvar.location.addr);
+            return next_stmt_is_ret1(stmt, stmt->expr->data.isvar_issvar.var_data.addr);
         }
         return stmt->opc == Uret;
     }
@@ -110,7 +104,7 @@ bool no_ref_param(struct Statement *parameters) {
     while (parameters != NULL) {
         if (parameters->u.par.dtype == Adt) {
             baseaddr = parameters->u.par.baseaddr;
-            if (baseaddr->type == islda && curblk == baseaddr->data.islda_isilda.address.blockno) {
+            if (baseaddr->type == islda && curblk == baseaddr->data.islda_isilda.var_data.blockno) {
                 return false;
             }
         }
@@ -126,24 +120,24 @@ bool no_ref_param(struct Statement *parameters) {
 static void func_00475E38(struct Variable *vartree, struct Statement *pmov_stmt) {
     struct Expression *expr;
     if (vartree != NULL) {
-        if (vartree->vreg && vartree->location.memtype == Pmt && curblk == vartree->location.blockno) {
-            int loc = vartree->location.addr;
+        if (vartree->unk2 && vartree->inner.memtype == Pmt && curblk == vartree->inner.blockno) {
+            int loc = vartree->inner.addr;
             if ((loc >= pmov_stmt->u.store.u.mov.offset && loc - pmov_stmt->u.store.u.mov.offset < pmov_stmt->u.store.size) ||
                 (pmov_stmt->u.store.u.mov.offset >= loc && pmov_stmt->u.store.u.mov.offset - loc < vartree->size))
             {
-                for (expr = table[isvarhash(vartree->location)]; expr != NULL; expr = expr->next) {
+                for (expr = table[isvarhash(vartree->inner)]; expr != NULL; expr = expr->next) {
                     if (expr->type != isvar) {
                         continue;
                     }
-                    if (curblk != expr->data.isvar_issvar.location.blockno) {
+                    if (curblk != expr->data.isvar_issvar.var_data.blockno) {
                         continue;
                     }
-                    if (vartree->location.addr != expr->data.isvar_issvar.location.addr) {
+                    if (vartree->inner.addr != expr->data.isvar_issvar.var_data.addr) {
                         continue;
                     }
-                    expr->data.isvar_issvar.vreg = false;
+                    expr->data.isvar_issvar.unk22 = false;
                     if (expr->ichain != NULL) {
-                        expr->ichain->isvar_issvar.vreg = false;
+                        expr->ichain->isvar_issvar.unk19 = false;
                     }
                 }
             }
@@ -164,11 +158,11 @@ void fix_par_vreg(struct Statement *pmov_stmt) {
 # 0047606C func_0047606C
 # 004761D0 tail_recursion
 */
-static struct TailRecParameter *func_00476034(int num, struct TailRecParameter **tailRecParHead) {
+static struct TailRecParameter *func_00476034(int arg0, struct TailRecParameter **tailRecParHead, int parnum) {
     struct TailRecParameter *par = *tailRecParHead;
 
     while (par != NULL) {
-        if (num == par->parnum) {
+        if (arg0 == par->parnum) {
             return par;
         }
         par = par->next;
@@ -186,25 +180,32 @@ static void func_0047606C(struct Expression *expr, struct TailRecParameter **tai
 
     switch (expr->type) {
         case isvar:
-            if (expr->data.isvar_issvar.location.memtype == Pmt) {
-
-                par_number = expr->data.isvar_issvar.location.addr;
-                if (par_number < parnum && func_00476034((par_number >> 2) << 2, tailRecParHead) == NULL) {
-                    par = alloc_new(sizeof(struct TailRecParameter), &perm_heap);
-                    par->parnum = (par_number >> 2) << 2;
-                    par->next = *tailRecParHead;
-                    *tailRecParHead = par;
-                }
+            if (expr->data.isvar_issvar.var_data.memtype != Pmt) {
+                return;
             }
-            break;
+
+            par_number = expr->data.isvar_issvar.var_data.addr;
+            if (par_number >= parnum) {
+                return;
+            }
+
+            if (func_00476034((par_number >> 2) << 2, tailRecParHead, parnum) != 0) {
+                return;
+            }
+
+            par = alloc_new(sizeof(struct TailRecParameter), &perm_heap);
+            par->parnum = (par_number >> 2) << 2;
+            par->next = *tailRecParHead;
+            *tailRecParHead = par;
+            return;
 
         case isop:
             func_0047606C(expr->data.isop.op1, tailRecParHead, parnum);
-            if (optab[expr->data.isop.opc].is_binary_op) {
-                // originally optimized by tail recursion
-                func_0047606C(expr->data.isop.op2, tailRecParHead, parnum);
+            if (!optab[expr->data.isop.opc].is_binary_op) {
+                return;
             }
-            break;
+            // originally optimized by tail recursion
+            func_0047606C(expr->data.isop.op2, tailRecParHead, parnum);
 
         case empty:
         case dumped:
@@ -214,18 +215,20 @@ static void func_0047606C(struct Expression *expr, struct TailRecParameter **tai
         default:
             break;
     }
+    return;
 }
 
 /* 
 # 00456A2C oneproc
 */
 void tail_recursion(void) {
-    struct Graphnode *prev;
+    struct Graphnode *oldHead;
     struct Statement *oldStattail;
     int parnum; // shared sp68
     bool found; // also shared? sp67
+    bool initialized;
     struct TailRecParameter *tailRecParHead; // shared sp60
-    struct Graphnode *node;
+    struct Graphnode *head;
     int size;
     struct Statement *stmt;
     struct GraphnodeList *predecessors;
@@ -256,49 +259,47 @@ void tail_recursion(void) {
     }
 
     found = false;
-    node = graphhead;
+    head = graphhead;
     do {
-        if (node->stat_tail != NULL
-                && node->stat_tail->opc == Ucup
-                && node->stat_tail->u.call.proc->id == curblk
+        if (head->stat_tail != NULL
+                && head->stat_tail->opc == Ucup
+                && head->stat_tail->u.call.proc->id == curblk
                 && ((lang == LANG_C || lang == LANG_PL1 || lang == LANG_RESERVED1)
                     // check for reference params for pascal, fortran, and ada source
-                    || no_ref_param(node->stat_tail->u.call.parameters))
-                && node->successors != NULL
-                && next_stmt_is_ret(node->stat_tail)
-                && node != graphhead
-                && node->predecessors != NULL) {
+                    || no_ref_param(head->stat_tail->u.call.parameters))
+                && head->successors != NULL
+                && next_stmt_is_ret(head->stat_tail)
+                && head != graphhead
+                && head->predecessors != NULL) {
 
+            initialized = found;
+            found = true;
             tailRecParHead = NULL;
-            if (!found) {
-                found = true;
+            if (!initialized) {
                 TRAP_IF(graphhead->blockno != 0);
                 maxlabnam += 1;
                 graphhead->blockno = maxlabnam;
                 stmt = alloc_new(sizeof(struct Statement), &perm_heap);
-#ifdef AVOID_UB
-                *stmt = (struct Statement){0};
-#endif
                 stmt->next =  graphhead->stat_head;
                 graphhead->stat_head->prev = stmt;
                 graphhead->stat_head = stmt;
                 stathead = stmt;
-                stmt->graphnode = graphhead;
                 stmt->prev = NULL;
                 stmt->opc = Ulab;
                 stmt->u.label.unk28 = 0;
                 stmt->u.label.flags = 0;
                 stmt->u.label.length = 0;
+                stmt->graphnode = graphhead;
                 stmt->u.label.blockno = maxlabnam;
             }
 
             if (listwritten) {
                 write_string(list.c_file, "TAIL RECURSION ELIMINATION at BB:", 33, 33);
-                write_integer(list.c_file, node->num, 12, 10);
+                write_integer(list.c_file, head->num, 12, 10);
                 writeln(list.c_file);
             }
 
-            stmt = node->stat_tail;
+            stmt = head->stat_tail;
             do {
                 if (stmt->opc == Upar || stmt->opc == Upmov) {
                     parnum = stmt->u.par.loc;
@@ -309,23 +310,23 @@ void tail_recursion(void) {
 
             curgraphnode = alloc_new(sizeof(struct Graphnode), &perm_heap);
             init_graphnode(curgraphnode);
-            curgraphnode->num = node->num;
-            curgraphnode->bvs.init.line = node->bvs.init.line;
-            curgraphnode->frequency = node->frequency;
-            curgraphnode->blockno = node->blockno;
-            prev->next = curgraphnode;
-            curgraphnode->next = node->next;
-            curgraphnode->predecessors = node->predecessors;
-            curgraphnode->successors = node->successors;
+            curgraphnode->num = head->num;
+            curgraphnode->bvs.init.line = head->bvs.init.line;
+            curgraphnode->unk2C = head->unk2C;
+            curgraphnode->blockno = head->blockno;
+            oldHead->next = curgraphnode;
+            curgraphnode->next = head->next;
+            curgraphnode->predecessors = head->predecessors;
+            curgraphnode->successors = head->successors;
 
-            predecessors = node->predecessors;
+            predecessors = head->predecessors;
             do {
-                change_adj_node(predecessors->graphnode->successors, node, curgraphnode);
+                change_adj_node(predecessors->graphnode->successors, head, curgraphnode);
                 predecessors = predecessors->next;
             } while (predecessors != NULL);
 
-            change_adj_node(curgraphnode->successors->graphnode->predecessors, node, curgraphnode);
-            stmt = node->stat_head;
+            change_adj_node(curgraphnode->successors->graphnode->predecessors, head, curgraphnode);
+            stmt = head->stat_head;
             oldStattail = stattail;
             stattail = stmt->prev;
             stat_opc = stmt->opc;
@@ -338,11 +339,11 @@ void tail_recursion(void) {
                         stat_opc != Ustr) {
                     oneloopblockstmt(stmt);
                 } else if (stat_opc == Ustr) {
-                    if (stmt->expr->data.isvar_issvar.location.memtype != Rmt) {
+                    if (stmt->expr->data.isvar_issvar.var_data.memtype != Rmt) {
                         oneloopblockstmt(stmt);
                     }
                 } else if (stat_opc == Upar) {
-                    trPar = func_00476034(stmt->u.par.loc, &tailRecParHead);
+                    trPar = func_00476034(stmt->u.par.loc, &tailRecParHead, parnum);
                     if (trPar != 0) {
                         size = stmt->u.par.size;
                         phi_a0 = tempdisp % size;
@@ -414,46 +415,43 @@ void tail_recursion(void) {
             graphhead->predecessors = predecessors;
             curgraphnode->stat_tail = stattail;
             codeimage();
-            stattail->next = node->stat_tail->next;
-            node->stat_tail->next->prev = stattail;
+            stattail->next = head->stat_tail->next;
+            head->stat_tail->next->prev = stattail;
             stattail = oldStattail;
-            node = curgraphnode;
+            head = curgraphnode;
         }
 
-        prev = node;
-        node = node->next;
-    } while (node != NULL);
+        oldHead = head;
+        head = head->next;
+    } while (head != NULL);
 
     if (found) {
-        node = alloc_new(sizeof(struct Graphnode), &perm_heap);
-        init_graphnode(node);
-        node->num = curstaticno++;
-        node->next = graphhead;
-        node->bvs.init.line = graphhead->bvs.init.line;
-        node->frequency = graphhead->frequency;
+        head = alloc_new(sizeof(struct Graphnode), &perm_heap);
+        init_graphnode(head);
+        head->num = curstaticno++;
+        head->next = graphhead;
+        head->bvs.stage1.u.precm.unk134 = graphhead->bvs.stage1.u.precm.unk134;
+        head->unk2C = graphhead->unk2C;
         stmt = alloc_new(sizeof(struct Statement), &perm_heap);
-#ifdef AVOID_UB
-        *stmt = (struct Statement){0};
-#endif
         stmt->next = stathead;
         stathead->prev = stmt;
         stmt->prev = NULL;
         stmt->opc = Unop;
-        stmt->graphnode = node;
+        stmt->graphnode = head;
         // u.nop?
         stmt->u.store.ichain = NULL;
-        node->stat_head = stmt;
-        node->stat_tail = stmt;
+        head->stat_head = stmt;
+        head->stat_tail = stmt;
         stathead = stmt;
-        init_node_vectors(node);
-        predecessors = alloc_new(sizeof(struct GraphnodeList), &perm_heap);
-        predecessors->graphnode = node;
+        init_node_vectors(head);
+        predecessors = alloc_new(8, &perm_heap);
+        predecessors->graphnode = head;
         predecessors->next = graphhead->predecessors;
         graphhead->predecessors = predecessors;
-        successors = alloc_new(sizeof(struct GraphnodeList), &perm_heap);
+        successors = alloc_new(8, &perm_heap);
         successors->graphnode = graphhead;
-        successors->next = node->successors;
-        node->successors = successors;
-        graphhead = node;
+        successors->next = head->successors;
+        head->successors = successors;
+        graphhead = head;
     }
 }

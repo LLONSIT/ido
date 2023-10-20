@@ -28,16 +28,14 @@
 #include "uoptemit.h"
 #include "opt_saved_regs.h"
 
-#include "debug.h"
-
 /*
 00456A2C oneproc
 */
-static void one_block(bool *elim_dead_code) { // originally embedded func
+static void one_block(bool *unconditional_jump) { // originally embedded func
     struct Statement *statpos;
     struct GraphnodeList *graphnode_list;
 
-    if (filteringout || *elim_dead_code) {
+    if (filteringout || *unconditional_jump) {
         curgraphnode = NULL;
 
         // remove dead code, skip to the next label or the end of the function
@@ -116,7 +114,6 @@ static void one_block(bool *elim_dead_code) { // originally embedded func
             case Uxjp:
                 endblock = true;
                 break;
-
             default:
                 endblock = false;
                 break;
@@ -136,7 +133,7 @@ static void one_block(bool *elim_dead_code) { // originally embedded func
                 getop();
             }
 
-            *elim_dead_code = (OPC == Uijp || OPC == Uret || OPC == Uujp || OPC == Uxjp) || (OPC == Ucup && IS_RETURN_ATTR(EXTRNAL));
+            *unconditional_jump = (OPC == Uijp || OPC == Uret || OPC == Uujp || OPC == Uxjp) || (OPC == Ucup && IS_RETURN_ATTR(EXTRNAL));
             switch (OPC) {
                 case Ucia:
                 case Ucup:
@@ -160,12 +157,9 @@ static void one_block(bool *elim_dead_code) { // originally embedded func
                         getop();
                     }
                     break;
-
-                default:
-                    break;
             }
         } else {
-            *elim_dead_code = (OPC == Uijp || OPC == Uret || OPC == Uujp || OPC == Uxjp) || (OPC == Ucup && IS_RETURN_ATTR(EXTRNAL));
+            *unconditional_jump = (OPC == Uijp || OPC == Uret || OPC == Uujp || OPC == Uxjp) || (OPC == Ucup && IS_RETURN_ATTR(EXTRNAL));
             endblock = false;
 
             getop();
@@ -177,7 +171,6 @@ static void one_block(bool *elim_dead_code) { // originally embedded func
 
         filteringout = false;
         constarith();
-
         if (outofmem) {
             return;
         }
@@ -190,7 +183,7 @@ static void one_block(bool *elim_dead_code) { // originally embedded func
 0045806C main
 */
 void oneproc(void) {
-    bool elim_dead_code;
+    bool unconditional_jump;
     union Bcode u_copy;
 
     curproc = getproc(IONE);
@@ -251,14 +244,10 @@ void oneproc(void) {
                 curstaticno = 1;
             }
 
-#ifdef UOPT_DEBUG
-            gDebugTracingInput = true;
-#endif
-
-            elim_dead_code = false;
+            unconditional_jump = false;
             filteringout = false;
             while (OPC != Uend) {
-                one_block(&elim_dead_code);
+                one_block(&unconditional_jump);
                 loc_not_yet_seen = true;
                 if (outofmem) {
                     goto done;
@@ -267,11 +256,6 @@ void oneproc(void) {
             if (ustackbot != ustack) {
                 stackerror();
             }
-
-#ifdef UOPT_DEBUG
-            gDebugTracingInput = false;
-            //ncdebug();
-#endif
 
             u_copy = u;
             lastcopiedu.Ucode.Opc = Uend;
@@ -331,7 +315,6 @@ void oneproc(void) {
                 print_loop_relations(toplevelloops, 0);
             }
             loopunroll();
-            //ncdebug();
             if (dbugno == 8) {
                 print_loop_relations(toplevelloops, 0);
             }
@@ -356,7 +339,6 @@ void oneproc(void) {
             lasttime = time1;
 
             copypropagate();
-            //ncdebug();
             if (outofmem) {
                 goto done;
             }
@@ -381,13 +363,11 @@ void oneproc(void) {
             }
 
             findinduct();
-            //ncdebug();
             if (outofmem) {
                 goto done;
             }
 
             codemotion();
-            //ncdebug();
             if (outofmem) {
                 goto done;
             }
@@ -408,7 +388,6 @@ void oneproc(void) {
             lasttime = time1;
 
             eliminduct();
-            //ncdebug();
 
             time1 = getclock();
             if (listwritten) {
@@ -469,7 +448,6 @@ void oneproc(void) {
             lasttime = time1;
 
             globalcolor();
-
             if (outofmem) {
                 goto done;
             }
@@ -491,12 +469,6 @@ void oneproc(void) {
 
             opt_saved_regs();
             reemit();
-#ifdef UOPT_DEBUG
-            ncdebug();
-            ucode_input_clear();
-            ucode_output_clear();
-            cmtrace_clear();
-#endif
             if (dbugno == 2) {
                 printtab();
             }

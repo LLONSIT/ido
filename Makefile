@@ -1,61 +1,43 @@
 default: all
 
-SRC_DIRS := . src src/libmld src/libp src/libu src/libxmalloc src/uopt src/uopt/debug
+SRC_DIRS := . src src/libmld src/libp src/libu src/libxmalloc
+UOPT_DIR := src/uopt
+UGEN_DIR := src/ugen
 
 AVOID_UB ?= 1
 
-ARCH ?= x86
-
-# Build uopt with ncurses debugging
-DEBUG ?= 1
-
-ifeq ($(ARCH),x86)
-CC := gcc
-ENDIANNESS := -DUOPT_LITTLE_ENDIAN
-ARCH_FLAGS := -m32 -mfpmath=sse -msse2 -ffp-contract=off $(ENDIANNESS)
-    ifeq ($(DEBUG),1)
-        ARCH_FLAGS += -lncurses -DUOPT_DEBUG
-        OPTIMIZATION := -Og -flto=auto -ggdb3
-        #OPTIMIZATION := -O0 -ggdb3
-    else
-        OPTIMIZATION := -O2 -march=native -mtune=native -flto=auto
-    endif
-else ifeq ($(ARCH),mips)
 CC := mips-linux-gnu-gcc
-ARCH_FLAGS := -fPIC -mips2 -mfp32
-OPTIMIZATION := -ggdb3
-else
-$(error unsupported arch "$(ARCH)")
-endif
-
-CFLAGS := -I src -I src/uopt -I src/uopt/debug -Wall $(ARCH_FLAGS) $(OPTIMIZATION)
-LDFLAGS := $(ARCH_FLAGS) $(OPTIMIZATION) -lm
+CFLAGS := -fPIC -I src -mips2 -mfp32 -ggdb3
 
 ifeq ($(AVOID_UB),1)
-    CFLAGS += -DAVOID_UB
+    CFLAGS := $(CFLAGS) -DAVOID_UB
 endif
 
-ifeq ($(ARCH),mips)
-BUILD_DIR := build_mips
-else
 BUILD_DIR := build
-endif
-
-ALL_DIRS := $(addprefix $(BUILD_DIR)/,$(SRC_DIRS))
+ALL_DIRS := $(addprefix $(BUILD_DIR)/,$(SRC_DIRS) $(UOPT_DIR) $(UGEN_DIR))
 
 C_FILES := $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.c))
-O_FILES := $(addprefix $(BUILD_DIR)/,$(C_FILES:.c=.o))
+P_FILES := $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.p))
+UOPT_C_FILES := $(C_FILES) $(foreach dir,$(UOPT_DIR),$(wildcard $(dir)/*.c))
+UGEN_C_FILES := $(C_FILES) $(foreach dir,$(UGEN_DIR),$(wildcard $(dir)/*.c))
+UGEN_P_FILES := $(P_FILES) $(foreach dir,$(UGEN_DIR),$(wildcard $(dir)/*.p))
+UOPT_O_FILES := $(addprefix $(BUILD_DIR)/,$(UOPT_C_FILES:.c=.o))
+UGEN_O_FILES := $(addprefix $(BUILD_DIR)/,$(UGEN_C_FILES:.c=.o))
 DEP_FILES := $(O_FILES:.o=.d)
 
 # Ensure build directories exist before compiling anything
 DUMMY != mkdir -p $(ALL_DIRS)
 
-TARGET := $(BUILD_DIR)/uopt
+TARGETS := $(BUILD_DIR)/uopt $(BUILD_DIR)/ugen
 
-all: $(TARGET)
+all: $(TARGETS)
 
-$(TARGET): $(O_FILES)
+$(BUILD_DIR)/uopt: $(UOPT_O_FILES)
 	$(CC) -o $@ $^ $(LDFLAGS)
+
+$(BUILD_DIR)/ugen: $(UGEN_O_FILES)
+	tools/compile_pascal_files.sh
+	$(CC) -o $@ $^ build/src/ugen/build.p.o build/src/ugen/frame_offset.o build/src/ugen/reg_mgr.p.o $(LDFLAGS)
 
 $(BUILD_DIR)/%.o: %.c
 	$(CC) -MMD -c $(CFLAGS) -o $@ $<

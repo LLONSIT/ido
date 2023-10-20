@@ -11,25 +11,23 @@
 #include "uoptkill.h"
 #include "uoptcontrolflow.h"
 
-#include "debug.h"
-
 struct ParameterList {
     int key;
     void *value;
     struct ParameterList *next;
 };
 
-/*
+/* 
 0043CFCC readnxtinst
 */
 int parcount;
 
-/*
+/* 
 0043CFCC readnxtinst
 */
 bool passbyfp;
 
-/*
+/* 
 0043CFCC readnxtinst
 */
 struct Statement *lastmst;
@@ -49,14 +47,14 @@ bool branched_back_lab;
 /*
 0043A0CC copyline
 0043CFCC readnxtinst
-00456310 one_block
+00456310 func_00456310
 00456A2C oneproc
 0045806C main
 */
 void getop(void) {
     struct Label *lab;
     enum Uopcode op;
-    int merged_label;
+    int temp;
 
 restart: // TODO: change to tail recursion when O2 works
     readuinstr(&u, ustrptr);
@@ -66,27 +64,27 @@ restart: // TODO: change to tail recursion when O2 works
     }
     if (op == Ulab) {
         lab = searchlab(IONE, curproc->labels);
-        if (!lab->referenced) {
+        if (lab->unk8 == 0) { // 1 byte
             goto restart;
         }
-        if (lab->merged_label != 0) {
+        if (lab->len != 0) {
             goto restart;
         }
         branched_back_lab = lab->branched_back; // 1 byte
     } else if (op == Ufjp || op == Utjp || op == Uujp) {
-        merged_label = searchlab(IONE, curproc->labels)->merged_label;
-        if (merged_label != 0) {
-            IONE = merged_label;
+        temp = searchlab(IONE, curproc->labels)->len;
+        if (temp != 0) {
+            IONE = temp;
         }
     } else if (op == Uldc && DTYPE == Gdt) {
-        merged_label = searchlab(CONSTVAL.swpart.Ival, curproc->labels)->merged_label;
-        if (merged_label != 0) {
-            CONSTVAL.swpart.Ival = merged_label;
+        temp = searchlab(CONSTVAL.swpart.Ival, curproc->labels)->len;
+        if (temp != 0) {
+            CONSTVAL.swpart.Ival = temp;
         }
     } else if (op == Uxjp) {
-        merged_label = searchlab(LENGTH, curproc->labels)->merged_label;
-        if (merged_label != 0) {
-            LENGTH = merged_label;
+        temp = searchlab(LENGTH, curproc->labels)->len;
+        if (temp != 0) {
+            LENGTH = temp;
         }
     }
     switch (op) {
@@ -143,9 +141,6 @@ restart: // TODO: change to tail recursion when O2 works
                 LEXLEV = 0;
             }
             break;
-
-        default:
-            break;
     }
 
     if (optab[op].ends_bb) {
@@ -186,16 +181,16 @@ restart: // TODO: change to tail recursion when O2 works
 0043A0CC copyline
 */
 bool formal_parm_vreg(int addr) {
-    struct VariableLocation loc;
+    struct VariableInner var;
     struct Expression *entry;
 
-    loc.blockno = curblk;
-    loc.addr = addr;
-    loc.memtype = Pmt;
+    var.blockno = curblk;
+    var.addr = addr;
+    var.memtype = Pmt;
 
-    for (entry = table[isvarhash(loc)]; entry != NULL; entry = entry->next) {
-        if (entry->type == isvar && addreq(entry->data.isvar_issvar.location, loc)) {
-            return entry->data.isvar_issvar.vreg;
+    for (entry = table[isvarhash(var)]; entry != NULL; entry = entry->next) {
+        if (entry->type == isvar && addreq(entry->data.isvar_issvar.var_data, var)) {
+            return entry->data.isvar_issvar.unk22;
         }
     }
 
@@ -211,7 +206,7 @@ static void set_blklev(int blk, int level) {
 
 /*
 0043CFCC readnxtinst
-00456310 one_block
+00456310 func_00456310
 00456A2C oneproc
 0045806C main
 */
@@ -256,58 +251,64 @@ void copyline(void) {
             }
         }
         bitvectorsize = (curproc->bvsize >> 7) + 2;
-    } else if (OPC == Uregs || OPC == Urlod || OPC == Urstr) {
-        writeln(err.c_file);
-        write_string(err.c_file, "uopt: Error: ", 13, 13);
-        write_string(err.c_file, entnam0, 1024, entnam0len);
-        write_string(err.c_file, ": optimized code not allowed as input", 37, 37);
-        writeln(err.c_file);
-        fflush(err.c_file);
-        abort();
-    } else if (OPC == Ulex) {
-        set_blklev(IONE, LEXLEV);
-    } else if (OPC == Updef) {
-        if (aentptr != NULL) {
-            aentptr->u.aent.blockno++;
-            return;
-        }
-        argNum = OFFSET / 4;
-        if ((LENGTH & 3) != 0) {
-            LENGTH = LENGTH - (LENGTH & 3) + 4;
-            OFFSET = argNum * 4;
-        }
-        if (allcallersave || argNum < 4 || lang == LANG_ADA) {
-            if (!allcallersave && ++pdefno >= 3) {
-                passedbyfp = false;
-            }
-            new_pdeftabsize = argNum + LENGTH;
-            if (new_pdeftabsize >= pdeftabsize) {
-                pdeftab = alloc_realloc(pdeftab, (pdeftabsize * 16 + 15) / 16, (new_pdeftabsize * 16 + 15) / 16, &perm_heap);
-                for (i = pdeftabsize; i < new_pdeftabsize; i++) {
-                    pdeftab[i].opc = Unop;
+    } else {
+        if (OPC == Uregs || OPC == Urlod || OPC == Urstr) {
+            writeln(err.c_file);
+            write_string(err.c_file, "uopt: Error: ", 13, 13);
+            write_string(err.c_file, entnam0, 1024, entnam0len);
+            write_string(err.c_file, ": optimized code not allowed as input", 37, 37);
+            writeln(err.c_file);
+            fflush(err.c_file);
+            abort();
+        } else {
+            if (OPC == Ulex) {
+                set_blklev(IONE, LEXLEV);
+            } else {
+                if (OPC == Updef) {
+                    if (aentptr != NULL) {
+                        aentptr->u.aent.blockno++;
+                        return;
+                    }
+                    argNum = OFFSET / 4;
+                    if ((LENGTH & 3) != 0) {
+                        LENGTH = LENGTH - (LENGTH & 3) + 4;
+                        OFFSET = argNum * 4;
+                    }
+                    if (allcallersave || argNum < 4 || lang == LANG_ADA) {
+                        if (!allcallersave && ++pdefno >= 3) {
+                            passedbyfp = false;
+                        }
+                        new_pdeftabsize = argNum + LENGTH;
+                        if (new_pdeftabsize >= pdeftabsize) {
+                            pdeftab = alloc_realloc(pdeftab, (pdeftabsize * 16 + 15) / 16, (new_pdeftabsize * 16 + 15) / 16, &perm_heap);
+                            for (i = pdeftabsize; i < new_pdeftabsize; i++) {
+                                pdeftab[i].opc = Unop;
+                            }
+                            pdeftabsize = new_pdeftabsize;
+                        }
+                        pdef_entry = &pdeftab[argNum];
+                        pdef_entry->outmode = (LEXLEV & OUT_MODE) != 0;
+                        pdef_entry->opc = Updef;
+                        pdef_entry->dtype = DTYPE;
+                        pdef_entry->inmode = (LEXLEV & IN_MODE) != 0;
+                        pdef_entry->size = LENGTH;
+                        pdef_entry->offset = OFFSET;
+                        pdef_entry->unk3 = !formal_parm_vreg(OFFSET);
+                        if (!allcallersave) {
+                            if (DTYPE != Qdt && DTYPE != Rdt) {
+                                passedbyfp = false;
+                            }
+                            if (passedbyfp) {
+                                offsetpassedbyint = OFFSET + LENGTH;
+                            }
+                        }
+                        pdefmax = MAX(argNum, pdefmax);
+                    }
+                } else if (OPC == Uoptn) {
+                    getoption(IONE, LENGTH);
                 }
-                pdeftabsize = new_pdeftabsize;
             }
-            pdef_entry = &pdeftab[argNum];
-            pdef_entry->outmode = (LEXLEV & OUT_MODE) != 0;
-            pdef_entry->opc = Updef;
-            pdef_entry->dtype = DTYPE;
-            pdef_entry->inmode = (LEXLEV & IN_MODE) != 0;
-            pdef_entry->size = LENGTH;
-            pdef_entry->offset = OFFSET;
-            pdef_entry->unk3 = !formal_parm_vreg(OFFSET);
-            if (!allcallersave) {
-                if (DTYPE != Qdt && DTYPE != Rdt) {
-                    passedbyfp = false;
-                }
-                if (passedbyfp) {
-                    offsetpassedbyint = OFFSET + LENGTH;
-                }
-            }
-            pdefmax = MAX(argNum, pdefmax);
         }
-    } else if (OPC == Uoptn) {
-        getoption(IONE, LENGTH);
     }
 
     switch (OPC) {
@@ -322,8 +323,6 @@ void copyline(void) {
         case Uksym:
         case Uosym:
             lastcopiedu = u;
-            break;
-        default:
             break;
     }
     if (OPC != Uvreg && OPC != Unop) {
@@ -498,16 +497,16 @@ void incroccurrence(struct Expression **entry) {
             if (list->type == 1 &&
                 (stat->opc == Uisst || stat->opc == Ustr) &&
                 *entry == stat->expr->data.isvar_issvar.assigned_value &&
-                !stat->expr->killed &&
-                stat->expr->data.isvar_issvar.location.memtype != Rmt &&
+                !stat->expr->unk2 &&
+                stat->expr->data.isvar_issvar.var_data.memtype != Rmt &&
                 stat->expr->data.isvar_issvar.size >= 4 &&
                 stat->expr->count != 0)
             {
-                if ((!stat->expr->data.isvar_issvar.vreg ||
-                    curblk != stat->expr->data.isvar_issvar.location.blockno) &&
+                if ((!stat->expr->data.isvar_issvar.unk22 ||
+                    curblk != stat->expr->data.isvar_issvar.var_data.blockno) &&
                     !doingcopy && !curproc->has_trap)
                 {
-                    stat->u.store.lval_av = false;
+                    stat->u.store.unk1D = false;
                     done = true;
                     stat->expr->count++;
                     switch ((*entry)->type) {
@@ -534,12 +533,12 @@ void incroccurrence(struct Expression **entry) {
                     }
 
                     *entry = stat->expr;
-                    if (!stat->expr->data.isvar_issvar.vreg) {
+                    if (!stat->expr->data.isvar_issvar.unk22) {
                         lodkillprev(stat->expr);
                     }
                     if ((*entry)->count == 1) {
                         appendbbvarlst(*entry);
-                        if ((*entry)->data.isvar_issvar.vreg) {
+                        if ((*entry)->data.isvar_issvar.unk22) {
                             curgraphnode->varlisttail->unk8 = true;
                         }
                     }
@@ -584,7 +583,7 @@ bool treekilled(struct Expression *expr) {
     switch (expr->type) {
         case isvar:
         case issvar:
-            return expr->killed;
+            return expr->unk2;
 
         case islda:
         case isconst:
@@ -596,7 +595,7 @@ bool treekilled(struct Expression *expr) {
             result = treekilled(expr->data.isop.op1);
             if (expr->data.isop.opc == Uildv || expr->data.isop.opc == Uilod) {
                 if (!result) {
-                    result = expr->killed;
+                    result = expr->unk2;
                 }
             } else if (optab[expr->data.isop.opc].is_binary_op) {
                 if (!result) {
@@ -610,11 +609,8 @@ bool treekilled(struct Expression *expr) {
                     case Uiles:
                     case Uineq:
                         if (!result) {
-                            result = expr->killed;
+                            result = expr->unk2;
                         }
-                        break;
-
-                    default:
                         break;
                 }
             }
@@ -622,7 +618,7 @@ bool treekilled(struct Expression *expr) {
     }
 }
 
-/*
+/* 
 0043B504 readnxtinst_searchloop
 */
 static bool number_in_realstore(union Constant number) {
@@ -637,7 +633,7 @@ static bool number_in_realstore(union Constant number) {
     return strncmp(ustrptr, &real->c[number.real.disp & 0xff], number.real.len) == 0;
 }
 
-/*
+/* 
 0043CFCC readnxtinst
 */
 static void ustack_push(struct Expression *expr) {
@@ -663,7 +659,7 @@ static void ustack_add_value(void) {
     }
 }
 
-/*
+/* 
 0043CFCC readnxtinst
     used for ilod and istr
 */
@@ -676,7 +672,7 @@ static void ustack_add_index(void) {
     }
 }
 
-/*
+/* 
 0043CFCC readnxtinst
 */
 static void parstack_push(struct Statement *par) {
@@ -689,7 +685,7 @@ static void parstack_push(struct Statement *par) {
     parstack->par = par;
 }
 
-/*
+/* 
 0043CFCC readnxtinst
     replace addr with addr+1...????
 */
@@ -702,18 +698,18 @@ static struct Expression *func_0043B334(struct Expression *stexpr) {
             (stexpr->datatype != Ldt || stexpr->data.isconst.number.uintval != 0xFFFFFFFF)) {
             return enter_const(stexpr->data.isconst.number.intval + 1, stexpr->datatype, curgraphnode);
         }
-
+        
         return NULL;
     }
 
     TRAP_IF(stexpr->type != islda);
-    stexpr->data.islda_isilda.offset = stexpr->data.islda_isilda.offset;
+    stexpr->data.islda_isilda.addr = stexpr->data.islda_isilda.addr;
     lda = table[stexpr->table_index];
     found = false;
     while (!found && lda != NULL) {
         if (lda->type == islda &&
-                lda->data.islda_isilda.offset == stexpr->data.islda_isilda.offset + 1 &&
-                addreq(lda->data.islda_isilda.address, stexpr->data.islda_isilda.address) &&
+                lda->data.islda_isilda.addr == stexpr->data.islda_isilda.addr + 1 &&
+                addreq(lda->data.islda_isilda.var_data, stexpr->data.islda_isilda.var_data) &&
                 lda->data.islda_isilda.size == stexpr->data.islda_isilda.size) {
             found = true;
         } else {
@@ -725,9 +721,9 @@ static struct Expression *func_0043B334(struct Expression *stexpr) {
         lda = appendchain(stexpr->table_index);
         lda->type = islda;
         lda->datatype = Adt;
-        lda->data.islda_isilda.address = stexpr->data.islda_isilda.address;
+        lda->data.islda_isilda.var_data = stexpr->data.islda_isilda.var_data;
         lda->data.islda_isilda.size = stexpr->data.islda_isilda.size;
-        lda->data.islda_isilda.offset = stexpr->data.islda_isilda.offset + 1;
+        lda->data.islda_isilda.addr = stexpr->data.islda_isilda.addr + 1;
         lda->var_access_list = NULL;
         lda->data.islda_isilda.level = stexpr->data.islda_isilda.level;
         lda->graphnode = curgraphnode;
@@ -735,22 +731,22 @@ static struct Expression *func_0043B334(struct Expression *stexpr) {
     return lda;
 }
 
-/*
+/* 
 0043C248 cvt_to_float
 0043C56C transform_float_div
 0043CFCC readnxtinst
 */
-static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct VariableLocation *loc, struct Expression *stexpr1, struct Expression *stexpr2) {
-    bool found;
-    bool killed;
+static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct VariableInner *var, struct Expression *stexpr1, struct Expression *stexpr2) {
+    bool sp33;
+    bool sp31;
     bool sp30;
-    bool var_equivalence;
+    bool sp2F;
     struct Expression *expr;
 
     expr = table[tableIdx];
-    killed = false;
+    sp31 = false;
     sp30 = false;
-    var_equivalence = false;
+    sp2F = false;
 
     if (DTYPE == Sdt) {
         if (OPC != Uldc) {
@@ -758,13 +754,13 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                 expr = NULL;
             } else if (LENGTH > 4) {
                 // small string optimization?
-                var_equivalence = true;
+                sp2F = true;
             }
         }
     }
 
-    found = false;
-    while (!found && !var_equivalence && expr != NULL) {
+    sp33 = false;
+    while (!sp33 && !sp2F && expr != NULL) {
         if (expr->type == isop || expr->type == isilda) {
             if (expr->graphnode != curgraphnode) {
                 goto next;
@@ -774,57 +770,56 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
         switch (OPC) {
             case Ulod:
             case Ustr:
-                if (expr->type == isvar && addreq(expr->data.isvar_issvar.location, *loc)) {
-                    if (expr->data.isvar_issvar.veqv) {
-                        var_equivalence = true;
+                if (expr->type == isvar && addreq(expr->data.isvar_issvar.var_data, *var)) {
+                    if (expr->data.isvar_issvar.unk21) {
+                        sp2F = true;
                         break;
                     }
 
-                    // don't reuse expr if it was modified
-                    found = expr->graphnode == curgraphnode && !expr->killed;
-                    if (expr->data.isvar_issvar.vreg) {
+                    sp33 = expr->graphnode == curgraphnode && !expr->unk2;
+                    if (expr->data.isvar_issvar.unk22) {
                         sp30 = true;
                     }
 
-                    // hashtable chains are in execution order
-                    if (!found && expr->graphnode == curgraphnode) {
-                        killed = true;
+                    if (!sp33 && expr->graphnode == curgraphnode) {
+                        sp31 = true;
                     }
                 }
                 break;
 
             case Uisld:
             case Uisst:
-                if (expr->type == issvar && addreq(expr->data.isvar_issvar.location, *loc)) {
-                    if (expr->data.isvar_issvar.veqv) {
-                        var_equivalence = true;
+                if (expr->type == issvar && addreq(expr->data.isvar_issvar.var_data, *var)) {
+                    if (expr->data.isvar_issvar.unk21) {
+                        sp2F = true;
                         break;
                     }
 
-                    found = curgraphnode == expr->graphnode && !expr->killed &&
-                             !expr->data.isvar_issvar.outer_stack->data.isvar_issvar.veqv;
-                    if (expr->data.isvar_issvar.vreg) {
+                    sp33 = curgraphnode == expr->graphnode && !expr->unk2 &&
+                             !expr->data.isvar_issvar.unk24->data.isvar_issvar.unk21;
+                    //                                            ^   isop?   ^
+                    if (expr->data.isvar_issvar.unk22) {
                         sp30 = true;
                     }
 
-                    if (!found && expr->graphnode == curgraphnode) {
-                        killed = true;
+                    if (!sp33 && expr->graphnode == curgraphnode) {
+                        sp31 = true;
                     }
                 }
                 break;
 
             case Ulda:
-                if (expr->type == islda && addreq(expr->data.islda_isilda.address, *loc)) {
-                    if (expr->data.islda_isilda.size == LENGTH && expr->data.islda_isilda.offset == OFFSET) {
-                        found = true;
+                if (expr->type == islda && addreq(expr->data.islda_isilda.var_data, *var)) {
+                    if (expr->data.islda_isilda.size == LENGTH && expr->data.islda_isilda.addr == OFFSET) {
+                        sp33 = true;
                     }
                 }
                 break;
 
             case Uilda:
-                if (expr->type == isilda && addreq(expr->data.islda_isilda.address, *loc) &&
-                        expr->data.islda_isilda.size == LENGTH && expr->data.islda_isilda.offset == OFFSET) {
-                    found = !expr->data.islda_isilda.outer_stack->data.isvar_issvar.veqv;
+                if (expr->type == isilda && addreq(expr->data.islda_isilda.var_data, *var) &&
+                        expr->data.islda_isilda.size == LENGTH && expr->data.islda_isilda.addr == OFFSET) {
+                    sp33 = !expr->data.islda_isilda.unk34->data.isvar_issvar.unk21;
                 }
                 break;
 
@@ -832,24 +827,24 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                 if (expr->type == isconst && expr->datatype == DTYPE) {
                     if (DTYPE == Adt || DTYPE == Fdt || DTYPE == Gdt || DTYPE == Hdt || DTYPE == Jdt || DTYPE == Ldt || DTYPE == Ndt) {
                         if (expr->data.isconst.number.intval == CONSTVAL.swpart.Ival) {
-                            found = true;
+                            sp33 = true;
                         }
                     } else if (DTYPE == Idt || DTYPE == Kdt) {
                         if (expr->data.isconst.number.intval  == CONSTVAL.dwpart.dwval_h &&
                             expr->data.isconst.number.intval2 == CONSTVAL.dwpart.dwval_l) {
-                            found = true;
+                            sp33 = true;
                         }
                     } else if (CONSTVAL.swpart.Ival == expr->data.isconst.number.real.len &&
                             number_in_realstore(expr->data.isconst.number)) {
-                        found = true;
+                        sp33 = true;
                     }
                 }
-
+                
                 break;
 
             case Uldrc:
                 if (expr->type == isrconst && expr->datatype == DTYPE && expr->data.isrconst.value == IONE) {
-                    found = true;
+                    sp33 = true;
                 }
                 break;
 
@@ -864,7 +859,7 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                     if ((expr->data.isop.op1 == stexpr1 && expr->data.isop.op2 == stexpr2) ||
                         (expr->data.isop.op1 == stexpr2 && expr->data.isop.op2 == stexpr1)) {
                         if (expr->data.isop.aux2.v1.overflow_attr == IS_OVERFLOW_ATTR(LEXLEV)) {
-                            found = true;
+                            sp33 = true;
                         }
                     }
                 }
@@ -875,7 +870,7 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                 if (expr->type == isop && expr->data.isop.opc == OPC && expr->datatype == DTYPE) {
                     if ((expr->data.isop.op1 == stexpr1 && expr->data.isop.op2 == stexpr2) ||
                         (expr->data.isop.op1 == stexpr2 && expr->data.isop.op2 == stexpr1)) {
-                        found = true;
+                        sp33 = true;
                     }
                 }
                 break;
@@ -895,7 +890,7 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                 if (expr->type == isop && expr->data.isop.opc == OPC && expr->datatype == DTYPE) {
                     if (expr->data.isop.op1 == stexpr1 && expr->data.isop.op2 == stexpr2) {
                         if (expr->data.isop.aux2.v1.overflow_attr == IS_OVERFLOW_ATTR(LEXLEV)) {
-                            found = true;
+                            sp33 = true;
                         }
                     }
                 }
@@ -907,7 +902,7 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
             case Ules:
                 if (expr->type == isop && expr->data.isop.opc == OPC && expr->datatype == DTYPE) {
                     if (expr->data.isop.op1 == stexpr1 && expr->data.isop.op2 == stexpr2) {
-                        found = true;
+                        sp33 = true;
                     }
                 }
                 break;
@@ -916,7 +911,7 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                 if (expr->type == isop && expr->data.isop.opc == OPC && expr->datatype == DTYPE) {
                     if (expr->data.isop.op1 == stexpr1 && expr->data.isop.op2 == stexpr2) {
                         if (IONE == expr->data.isop.aux2.v1.unk3C) {
-                            found = true;
+                            sp33 = true;
                         }
                     }
                 }
@@ -926,7 +921,7 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                 if (expr->type == isop && expr->data.isop.opc == OPC && expr->datatype == DTYPE) {
                     if (expr->data.isop.op1 == stexpr1 && expr->data.isop.op2 == stexpr2) {
                         if (IONE == expr->data.isop.datasize) {
-                            found = true;
+                            sp33 = true;
                         }
                     }
                 }
@@ -943,7 +938,7 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                 if (expr->type == isop && expr->data.isop.opc == OPC && expr->datatype == DTYPE) {
                     if (expr->data.isop.op1 == stexpr1) {
                         if (expr->data.isop.aux2.v1.overflow_attr == IS_OVERFLOW_ATTR(LEXLEV)) {
-                            found = true;
+                            sp33 = true;
                         }
                     }
                 }
@@ -958,7 +953,7 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                     if (expr->data.isop.op1 == stexpr1) {
                         if (expr->data.isop.datasize == IONE) {
                             if (expr->data.isop.aux2.v1.overflow_attr == IS_OVERFLOW_ATTR(LEXLEV)) {
-                                found = true;
+                                sp33 = true;
                             }
                         }
                     }
@@ -971,7 +966,7 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                 if (expr->type == isop && expr->data.isop.opc == OPC && expr->datatype == DTYPE && expr->data.isop.aux.cvtfrom == DTYPE2) {
                     if (expr->data.isop.op1 == stexpr1) {
                         if (expr->data.isop.aux2.v1.overflow_attr == IS_OVERFLOW_ATTR(LEXLEV)) {
-                            found = true;
+                            sp33 = true;
                         }
                     }
                 }
@@ -981,7 +976,7 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                 if (expr->type == isop && expr->data.isop.opc == OPC) {
                     if (expr->data.isop.datasize == OFFSET && expr->data.isop.aux2.v1.unk3C == LENGTH) {
                         if (expr->data.isop.op1 == stexpr1) {
-                            found = true;
+                            sp33 = true;
                         }
                     }
                 }
@@ -990,7 +985,7 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
             case Uchkn:
                 if (expr->type == isop && expr->data.isop.opc == OPC) {
                     if (stexpr1 == expr->data.isop.op1) {
-                        found = true;
+                        sp33 = true;
                     }
                 }
                 break;
@@ -1000,8 +995,8 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                 if (expr->type == isop && expr->data.isop.opc == OPC && expr->datatype == DTYPE) {
                     if (expr->data.isop.op1 == stexpr1) {
                         if (expr->data.isop.datasize == IONE && expr->data.isop.aux2.v1.unk3C == LENGTH) {
-                            found = !expr->killed;
-                            killed = !found;
+                            sp33 = !expr->unk2;
+                            sp31 = !sp33;
                         }
                     }
                 }
@@ -1020,8 +1015,8 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                     if ((expr->data.isop.op1 == stexpr1 && expr->data.isop.op2 == stexpr2) ||
                         (expr->data.isop.op1 == stexpr2 && expr->data.isop.op2 == stexpr1)) {
                         if (expr->data.isop.datasize == LENGTH) {
-                            found = !expr->killed;
-                            killed = !found;
+                            sp33 = !expr->unk2;
+                            sp31 = !sp33;
                         }
                     }
                 }
@@ -1034,8 +1029,8 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
                 if (expr->type == isop && expr->data.isop.opc == OPC) {
                     if (expr->data.isop.op1 == stexpr1 && expr->data.isop.op2 == stexpr2) {
                         if (expr->data.isop.datasize == LENGTH) {
-                            found = !expr->killed;
-                            killed = !found;
+                            sp33 = !expr->unk2;
+                            sp31 = !sp33;
                         }
                     }
                 }
@@ -1051,12 +1046,12 @@ static struct Expression *readnxtinst_searchloop(unsigned short tableIdx, struct
         }
 
 next:
-        if (!found) {
+        if (!sp33) {
             expr = expr->next;
         }
     }
 
-    if (!found || var_equivalence) {
+    if (!sp33 || sp2F) {
         expr = appendchain(tableIdx);
         if (outofmem) {
             return expr;
@@ -1066,12 +1061,12 @@ next:
 
         // originally performs useless checks for below opcodes including Ulca Ulda Uldc, then overwrites with && below
         if (OPC == Uisld || OPC == Uisst || OPC == Ulod || OPC == Ustr) {
-                expr->data.isvar_issvar.veqv = var_equivalence;
-                expr->data.isvar_issvar.vreg = !var_equivalence && sp30;
+                expr->data.isvar_issvar.unk21 = sp2F;
+                expr->data.isvar_issvar.unk22 = !sp2F && sp30;
         }
 
-        if (killed) {
-            expr->initialVal = false;
+        if (sp31) {
+            expr->unk3 = false;
         } else if (OPC == Uisld || OPC == Uisst || OPC == Ulod || OPC == Ustr ||
                    (OPC == Uiequ ||
                     OPC == Uigeq ||
@@ -1081,21 +1076,22 @@ next:
                     OPC == Uineq ||
                     OPC == Uilod ||
                     OPC == Uirld)) {
-                expr->initialVal = true;
+                expr->unk3 = true;
         }
     }
 
     return expr;
 }
 
-/*
+/* 
 0043CFCC readnxtinst
 */
-static void cvt_to_float(struct UstackEntry *ustackHead, struct VariableLocation *loc, struct Expression *stexpr1, struct Expression *stexpr2) {
+static void cvt_to_float(struct UstackEntry *ustackHead, struct VariableInner *var, struct Expression *stexpr1, struct Expression *stexpr2) {
     struct Expression *expr;
     unsigned int value;
     unsigned int exponent;
     bool done;
+    int i;
 
     OPC = Uldc;
     if (DTYPE == Rdt) {
@@ -1136,7 +1132,7 @@ static void cvt_to_float(struct UstackEntry *ustackHead, struct VariableLocation
     ustrptr[CONSTVAL.swpart.Ival++] = '.';
     ustrptr[CONSTVAL.swpart.Ival++] = '0';
 
-    expr = readnxtinst_searchloop(realhash(CONSTVAL.swpart.Ival), loc, stexpr1, stexpr2);
+    expr = readnxtinst_searchloop(realhash(CONSTVAL.swpart.Ival), var, stexpr1, stexpr2);
     if (expr->type == empty) {
         expr->type = isconst;
         expr->datatype = DTYPE;
@@ -1161,15 +1157,16 @@ static void cvt_to_float(struct UstackEntry *ustackHead, struct VariableLocation
     ustackHead->expr = expr;
 }
 
-/*
+/* 
 0043CFCC readnxtinst
 */
-static struct Expression *transform_float_div(int real_significand, bool negative, int real_exponent, Datatype dtype, struct VariableLocation *loc, struct Expression *stexpr1, struct Expression *stexpr2) {
+static struct Expression *transform_float_div(int real_significand, bool negative, int real_exponent, Datatype dtype, struct VariableInner *var, struct Expression *stexpr1, struct Expression *stexpr2) {
     int sp34;
     struct Expression *expr;
     bool done;
     int value;
     int exponent;
+    int i;
 
     real_exponent = -real_exponent;
     sp34 = 1;
@@ -1259,7 +1256,7 @@ static struct Expression *transform_float_div(int real_significand, bool negativ
         }  while (exponent != 0);
     }
 
-    expr = readnxtinst_searchloop(realhash(CONSTVAL.swpart.Ival), loc, stexpr1, stexpr2);
+    expr = readnxtinst_searchloop(realhash(CONSTVAL.swpart.Ival), var, stexpr1, stexpr2);
     if (expr->type == empty) {
         expr->type = isconst;
         expr->datatype = DTYPE;
@@ -1289,7 +1286,7 @@ static struct Expression *transform_float_div(int real_significand, bool negativ
     return expr;
 }
 
-/*
+/* 
 0043CA8C link_ijp_labels
 0043CFCC readnxtinst
 */
@@ -1332,73 +1329,73 @@ static void link_ijp_labels(struct IjpLabel *ijp) {
     }
 }
 
-/*
+/* 
 0043CFCC readnxtinst
 */
 static void func_0043CBFC(struct UstackEntry *head) { // XXX: never called in oot
-    struct VariableLocation shared_stack_location;
-    unsigned short shared_hash;
-    struct Expression *outer_stack;
+    struct VariableInner var_data;
+    unsigned short varhash;
+    struct Expression *var;
     bool found;
 
-    if (head->expr->data.isvar_issvar.location.addr != staticlinkloc) {
+    if (head->expr->data.isvar_issvar.var_data.blockno != staticlinkloc) {
         decreasecount(head->expr);
-        shared_stack_location.addr = staticlinkloc;
-        shared_stack_location.blockno = curblk;
-        shared_stack_location.memtype = Mmt;
-        shared_hash = isvarhash(shared_stack_location);
-        outer_stack = table[shared_hash];
+        var_data.addr = staticlinkloc;
+        var_data.blockno = curblk;
+        var_data.memtype = Mmt;
+        varhash = isvarhash(var_data);
+        var = table[varhash];
         found = false;
-        while (!found && outer_stack != NULL) {
-            if (outer_stack->graphnode == curgraphnode
-                    && outer_stack->type == isvar
-                    && addreq(outer_stack->data.isvar_issvar.location, shared_stack_location)) {
+        while (!found && var != NULL) {
+            if (var->graphnode == curgraphnode
+                    && var->type == isvar
+                    && addreq(var->data.isvar_issvar.var_data, var_data)) {
                 found = true;
             }
             if (!found) {
-                outer_stack = outer_stack->next;
+                var = var->next;
             }
         }
 
         if (!found) {
-            outer_stack = appendchain(shared_hash);
+            var = appendchain(varhash);
             if (outofmem) {
                 return;
             }
 
-            outer_stack->data.isvar_issvar.veqv = false;
-            outer_stack->data.isvar_issvar.vreg = true;
-            outer_stack->graphnode = curgraphnode;
+            var->data.isvar_issvar.unk21 = false;
+            var->data.isvar_issvar.unk22 = true;
+            var->graphnode = curgraphnode;
         }
 
-        if (outer_stack->type == empty) {
-            outer_stack->type = isvar;
-            outer_stack->data.isvar_issvar.assignment = NULL;
-            outer_stack->datatype = Adt;
-            outer_stack->data.isvar_issvar.size = 4;
-            outer_stack->count = 0;
-            outer_stack->data.isvar_issvar.copy = NULL;
-            outer_stack->data.isvar_issvar.outer_stack = NULL;
-            outer_stack->killed = false;
-            outer_stack->initialVal = true;
-            outer_stack->data.isvar_issvar.is_volatile = false;
-            outer_stack->data.isvar_issvar.location = shared_stack_location;
+        if (var->type == empty) {
+            var->type = isvar;
+            var->data.isvar_issvar.assignment = NULL;
+            var->datatype = Adt;
+            var->data.isvar_issvar.size = 4;
+            var->count = 0;
+            var->data.isvar_issvar.unk30 = NULL;
+            var->data.isvar_issvar.unk24 = NULL;
+            var->unk2 = false;
+            var->unk3 = true;
+            var->data.isvar_issvar.is_volatile = false;
+            var->data.isvar_issvar.var_data = var_data;
         }
 
-        head->expr = outer_stack;
-        increasecount(outer_stack);
+        head->expr = var;
+        increasecount(var);
 
-        if (outer_stack->count == 1) {
-            appendbbvarlst(outer_stack);
+        if (var->count == 1) {
+            appendbbvarlst(var);
             curgraphnode->varlisttail->unk8 = true;
         }
     }
 
-    head->expr->data.isvar_issvar.location.level = 200;
-    head->expr->data.isvar_issvar.vreg = true;
+    head->expr->data.isvar_issvar.var_data.level = 200;
+    head->expr->data.isvar_issvar.unk22 = true;
 }
 
-/*
+/* 
 0043CFCC readnxtinst
 */
 static bool func_0043CE64(struct Expression *stexpr1, int val) {
@@ -1410,8 +1407,8 @@ static bool func_0043CE64(struct Expression *stexpr1, int val) {
     while (var != NULL) {
         if (var->type == 1) {
             store = var->data.store;
-            if (store->opc == Uistr && store->expr == stexpr1 && store->u.store.u.istr.offset == val
-                    && store->u.store.store_av && store->u.store.u.istr.dtype == DTYPE && store->u.store.size == LENGTH
+            if (store->opc == Uistr && store->expr == stexpr1 && store->u.store.u.istr.s.word == val
+                    && store->u.store.unk1F && store->u.store.u.istr.dtype == DTYPE && store->u.store.size == LENGTH
                     && !treekilled(store->u.store.expr)) {
                 decreasecount(stexpr1);
                 expr = var->data.store->u.store.expr;
@@ -1430,20 +1427,18 @@ static bool func_0043CE64(struct Expression *stexpr1, int val) {
 /* 
 0043A7DC createcvtl
 0043CFCC readnxtinst
-00456310 one_block
+00456310 func_00456310
 */
 void readnxtinst(void) {
     struct Expression *expr; // sp10C
     struct Expression *stexpr1; // spF8  $v0-0x18
     struct Expression *stexpr2; // spF4  $v0-0x1c
     struct Expression *stexpr3;
-    struct VariableLocation loc; // spE4    $v0-0x28, -0x2c
+    struct VariableInner var; // spE4    $v0-0x28, -0x2c
     int increment_result; // spC4
     int tmp1;
     int tmp2;
     int tmp3;
-    int length;
-    int clab_blockno;
     unsigned short hash;
     Datatype dtype;
     int i;
@@ -1453,8 +1448,8 @@ void readnxtinst(void) {
     bool eliminated;
     bool negative;
     bool at_current_realpool_entry;
-    bool lval_ant;
-    bool store_ant;
+    bool unk1C;
+    bool unk1E;
     struct Expression *expr2;
     struct Statement *stmt;
     struct Graphnode *target_graphnode;
@@ -1464,6 +1459,7 @@ void readnxtinst(void) {
     bool found;
     bool endblock_saved;
     struct Graphnode *graphnode;
+    struct GraphnodeList *new_graphnode_list_item;
     struct ParstackEntry *parstack_entry;
 
     if (!optab[OPC].executable) {
@@ -1472,41 +1468,41 @@ void readnxtinst(void) {
         return;
     }
 
-    if (ustack != ustackbot && ustack->expr->type == isvar && ustack->expr->data.isvar_issvar.location.memtype == Amt && OPC != Ustr) {
+    if (ustackbot != ustack && ustack->expr->type == isvar && ustack->expr->data.isvar_issvar.var_data.memtype == Amt && OPC != Ustr) {
         // XXX: untested (Amt doesn't exist in C)
         TRAP_IF(ustack->expr->data.isvar_issvar.assignment != NULL);
-        ustack->expr->killed = true;
+        ustack->expr->unk2 = true;
         expr = appendchain(ustack->expr->table_index);
         expr->type = isvar;
         expr->datatype = ustack->expr->datatype;
-        expr->killed = false;
-        expr->initialVal = false;
+        expr->unk2 = false;
+        expr->unk3 = false;
         expr->count = 0;
         expr->graphnode = curgraphnode;
         expr->data.isvar_issvar.size = ustack->expr->data.isvar_issvar.size;
-        expr->data.isvar_issvar.veqv = false;
-        expr->data.isvar_issvar.vreg = true;
+        expr->data.isvar_issvar.unk21 = false;
+        expr->data.isvar_issvar.unk22 = true;
         expr->data.isvar_issvar.is_volatile = false;
-        expr->data.isvar_issvar.outer_stack = NULL;
-        expr->data.isvar_issvar.location = ustack->expr->data.isvar_issvar.location;
-        expr->data.isvar_issvar.location.level = ustack->expr->data.isvar_issvar.location.level;
-        expr->data.isvar_issvar.copy = NULL;
+        expr->data.isvar_issvar.unk24 = NULL;
+        expr->data.isvar_issvar.var_data = ustack->expr->data.isvar_issvar.var_data;
+        expr->data.isvar_issvar.var_data.level = ustack->expr->data.isvar_issvar.var_data.level;
+        expr->data.isvar_issvar.unk30 = NULL;
         expr->data.isvar_issvar.assigned_value = ustack->expr;
 
         extendstat(Ustr);
-        stattail->outpar = true;
-        lastmst->u.mst.loc = expr->data.isvar_issvar.location.addr;
-        insert_outparlist(expr->data.isvar_issvar.location.addr, expr);
+        stattail->unk3 = true;
+        lastmst->u.mst.loc = expr->data.isvar_issvar.var_data.addr;
+        insert_outparlist(expr->data.isvar_issvar.var_data.addr, expr);
         ustack = ustack->down;
         stattail->expr = expr;
-        stattail->is_increment = false;
-        stattail->suppressed_iv = false;
-        stattail->u.store.lval_ant = false;
-        stattail->u.store.store_ant = false;
-        stattail->u.store.lval_av = false;
-        stattail->u.store.store_av = false;
-        stattail->u.store.u.str.srcands = NULL;
-        stattail->u.store.u.str.recurs = NULL;
+        stattail->unk1 = false;
+        stattail->unk2 = false;
+        stattail->u.store.unk1C = false;
+        stattail->u.store.unk1E = false;
+        stattail->u.store.unk1D = false;
+        stattail->u.store.unk1F = false;
+        stattail->u.store.u.str.unk2C = 0;
+        stattail->u.store.u.str.unk30 = 0;
         expr->data.isvar_issvar.assignment = NULL;
         appendstorelist();
         curgraphnode->varlisttail->unk8 = true;
@@ -1524,28 +1520,28 @@ void readnxtinst(void) {
             OFFSET = r_sp;
             LENGTH = 4;
 
-            loc.memtype = Rmt;
-            loc.blockno = IONE;
-            loc.addr = r_sp;
+            var.memtype = Rmt;
+            var.blockno = IONE;
+            var.addr = r_sp;
 
-            expr = readnxtinst_searchloop(isvarhash(loc), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(isvarhash(var), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
 
             if (expr->type == empty) {
                 expr->type = isvar;
-                expr->data.isvar_issvar.location = loc;
+                expr->data.isvar_issvar.var_data = var;
                 expr->data.isvar_issvar.assignment = NULL;
                 expr->datatype = Adt;
                 expr->data.isvar_issvar.size = 4;
                 expr->count = 0;
-                expr->data.isvar_issvar.copy = NULL;
-                expr->data.isvar_issvar.outer_stack = NULL;
-                expr->killed = true;
-                expr->initialVal = false;
+                expr->data.isvar_issvar.unk30 = NULL;
+                expr->data.isvar_issvar.unk24 = NULL;
+                expr->unk2 = true;
+                expr->unk3 = false;
                 expr->data.isvar_issvar.is_volatile = true;
-                expr->data.isvar_issvar.location.level = curlevel;
+                expr->data.isvar_issvar.var_data.level = curlevel;
             }
 
             ustack_push(expr);
@@ -1591,15 +1587,15 @@ void readnxtinst(void) {
                 return;
             }
 
-            loc.memtype = MTYPE;
-            loc.blockno = IONE;
-            loc.addr = OFFSET;
-            if (loc.memtype == Rmt) {
-                loc.blockno = 0;
+            var.memtype = MTYPE;
+            var.blockno = IONE;
+            var.addr = OFFSET;
+            if (var.memtype == Rmt) {
+                var.blockno = 0;
             }
 
             // searchloop
-            expr = readnxtinst_searchloop(isvarhash(loc), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(isvarhash(var), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
@@ -1609,8 +1605,8 @@ void readnxtinst(void) {
                     func_0043CBFC(ustack);
                 } else {
                     TRAP_IF(ustack->expr->type != issvar);
-                    ustack->expr->data.isvar_issvar.location.level = 200;
-                    ustack->expr->data.isvar_issvar.vreg = true;
+                    ustack->expr->data.isvar_issvar.var_data.level = 200;
+                    ustack->expr->data.isvar_issvar.unk22 = true;
                     ustack->expr->var_access_list->unk8 = true;
                 }
             }
@@ -1621,31 +1617,31 @@ void readnxtinst(void) {
                 } else {
                     expr->type = issvar;
                 }
-                expr->data.isvar_issvar.location = loc;
+                expr->data.isvar_issvar.var_data = var;
                 expr->data.isvar_issvar.assignment = NULL;
                 expr->datatype = DTYPE;
                 expr->data.isvar_issvar.size = LENGTH;
-                expr->data.isvar_issvar.location.level = blktolev(loc.blockno);
+                expr->data.isvar_issvar.var_data.level = blktolev(var.blockno);
                 expr->count = 0;
-                expr->data.isvar_issvar.copy = NULL;
+                expr->data.isvar_issvar.unk30 = NULL;
 
                 if (OPC == Uisld) {
-                    expr->data.isvar_issvar.temploc = 0;
-                    expr->unk4 = 0;
-                    expr->visited = 0;
-                    expr->data.isvar_issvar.outer_stack = ustack->expr;
+                    expr->data.isvar_issvar.unk3C = 0;
+                    expr->unk4 = false;
+                    expr->unk5 = false;
+                    expr->data.isvar_issvar.unk24 = ustack->expr;
                 } else {
-                    expr->data.isvar_issvar.outer_stack = NULL;
+                    expr->data.isvar_issvar.unk24 = NULL;
                 }
 
-                if (!expr->data.isvar_issvar.veqv) {
-                    expr->killed = false;
-                    if (expr->initialVal && !expr->data.isvar_issvar.vreg) {
-                        expr->initialVal = !varkilled(expr, curgraphnode->varlisthead);
+                if (!expr->data.isvar_issvar.unk21) {
+                    expr->unk2 = false;
+                    if (expr->unk3 && !expr->data.isvar_issvar.unk22) {
+                        expr->unk3 = !varkilled(expr, curgraphnode->varlisthead);
                     }
                 } else {
-                    expr->killed = true;
-                    expr->initialVal = false;
+                    expr->unk2 = true;
+                    expr->unk3 = false;
                 }
 
                 expr->data.isvar_issvar.is_volatile = IS_VOLATILE_ATTR(LEXLEV);
@@ -1655,52 +1651,50 @@ void readnxtinst(void) {
                 ustack = ustack->down;
             }
 
-            // The variable was not assigned in the block, or previous assignment can't be moved forwards
-            if (expr->data.isvar_issvar.assignment == NULL || !expr->data.isvar_issvar.assignment->u.store.store_av) {
+            if (expr->data.isvar_issvar.assignment == NULL || !expr->data.isvar_issvar.assignment->u.store.unk1F) {
                 ustack_push(expr);
                 increasecount(expr);
 
-                if (!expr->data.isvar_issvar.vreg) {
+                // unk22 == true if variable was used?
+                if (!expr->data.isvar_issvar.unk22) {
                     lodkillprev(expr);
                 }
 
                 if (expr->count == 1 && MTYPE != Amt) {
                     appendbbvarlst(expr);
-                    if (expr->data.isvar_issvar.vreg) {
+                    if (expr->data.isvar_issvar.unk22) {
                         curgraphnode->varlisttail->unk8 = true;
                     }
                 }
 
-                if (!expr->data.isvar_issvar.veqv) {
+                if (!expr->data.isvar_issvar.unk21) {
                     varrefs++;
                 }
                 return;
             } else if ((bigtree(expr->data.isvar_issvar.assigned_value, 20) || treekilled(expr->data.isvar_issvar.assigned_value))
                     || (expr->data.isvar_issvar.assigned_value->type == isop && expr->data.isvar_issvar.assigned_value->count == 1
-                        && (!((expr->data.isvar_issvar.vreg && expr->data.isvar_issvar.location.blockno == curblk)
+                        && (!((expr->data.isvar_issvar.unk22 && expr->data.isvar_issvar.var_data.blockno == curblk)
                                 || doingcopy || curproc->has_trap)
                             || has_ilod(expr->data.isvar_issvar.assigned_value))
                         && !constexp(expr->data.isvar_issvar.assigned_value))) {
                 ustack_push(expr);
-
-                // the assignment can't be moved forwards in the block, since the variable was used after the assignment
-                expr->data.isvar_issvar.assignment->u.store.lval_av = false;
+                expr->data.isvar_issvar.assignment->u.store.unk1D = false;
 
                 if (expr->count == 0) {
-                    if (!expr->data.isvar_issvar.vreg) {
+                    if (!expr->data.isvar_issvar.unk22) {
                         lodkillprev(expr);
                     }
 
-                    if (expr->data.isvar_issvar.location.memtype != Amt) {
+                    if (expr->data.isvar_issvar.var_data.memtype != Amt) {
                         appendbbvarlst(expr);
-                        if (expr->data.isvar_issvar.vreg) {
+                        if (expr->data.isvar_issvar.unk22) {
                             curgraphnode->varlisttail->unk8 = true;
                         }
                     }
                 }
 
                 increasecount(expr);
-                if (!expr->data.isvar_issvar.veqv) {
+                if (!expr->data.isvar_issvar.unk21) {
                     varrefs++;
                 }
                 return;
@@ -1780,27 +1774,27 @@ void readnxtinst(void) {
 
         case Uilda: // XXX: untested
         case Ulda:
-            loc.memtype = MTYPE;
-            loc.blockno = IONE;
-            loc.addr = OFFSET2;
-            if (loc.memtype == Rmt) {
-                loc.blockno = 0;
+            var.memtype = MTYPE;
+            var.blockno = IONE;
+            var.addr = OFFSET2;
+            if (var.memtype == Rmt) {
+                var.blockno = 0;
             }
 
-            if (curblk == loc.blockno && (lang == LANG_C || lang == LANG_PL1 || lang == LANG_RESERVED1)) {
+            if (curblk == var.blockno && (lang == LANG_C || lang == LANG_PL1 || lang == LANG_RESERVED1)) {
                 can_elim_tail = false;
             }
 
             if (lang == LANG_ADA && LENGTH == -1) {
-                if (loc.memtype == Mmt) {
+                if (var.memtype == Mmt) {
                     LENGTH = -4 - OFFSET;
-                    loc.addr =  OFFSET;
+                    var.addr =  OFFSET;
                 } else {
                     LENGTH = 0x7FFFFFFF;
                 }
             }
 
-            expr = readnxtinst_searchloop(isvarhash(loc), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(isvarhash(var), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
@@ -1810,8 +1804,8 @@ void readnxtinst(void) {
                     func_0043CBFC(ustack);
                 } else {
                     TRAP_IF(ustack->expr->type != issvar);
-                    ustack->expr->data.isvar_issvar.location.level = 200;
-                    ustack->expr->data.isvar_issvar.vreg = true;
+                    ustack->expr->data.isvar_issvar.var_data.level = 200;
+                    ustack->expr->data.isvar_issvar.unk22 = true;
                     ustack->expr->var_access_list->unk8 = true;
                 }
             }
@@ -1825,20 +1819,20 @@ void readnxtinst(void) {
 
                 expr->datatype = Adt;
                 expr->count = 0;
-                expr->data.islda_isilda.address = loc;
+                expr->data.islda_isilda.var_data = var;
                 expr->data.islda_isilda.size = LENGTH;
-                expr->data.islda_isilda.level = blktolev(loc.blockno);
+                expr->data.islda_isilda.level = blktolev(var.blockno);
                 expr->var_access_list = NULL;
-                expr->data.islda_isilda.offset = OFFSET;
+                expr->data.islda_isilda.addr = OFFSET;
 
                 if (OPC == Uilda) {
                     expr->count = 1;
-                    expr->unk4 = 0;
-                    expr->visited = 0;
-                    expr->data.islda_isilda.outer_stack = ustack->expr;
-                    expr->data.islda_isilda.temploc = NULL;
+                    expr->unk4 = false;
+                    expr->unk5 = false;
+                    expr->data.islda_isilda.unk34 = ustack->expr;
+                    expr->data.islda_isilda.unk38 = 0;
                 } else {
-                    expr->data.islda_isilda.outer_stack = NULL;
+                    expr->data.islda_isilda.unk34 = NULL;
                 }
             } else if (OPC == Uilda) {
                 increasecount(expr);
@@ -1886,7 +1880,7 @@ void readnxtinst(void) {
                     break;
             }
 
-            expr = readnxtinst_searchloop(hash, &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(hash, &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
@@ -1937,7 +1931,7 @@ void readnxtinst(void) {
             return;
 
         case Uldrc: // XXX: untested
-            expr = readnxtinst_searchloop(isconsthash(IONE), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(isconsthash(IONE), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
@@ -2008,6 +2002,7 @@ void readnxtinst(void) {
                     ustack->expr = stexpr2;
                     eliminated = true;
                 }
+                
             } else if (OPC == Umpy && (DTYPE == Jdt || DTYPE == Ldt) &&
                     (stexpr2->type == isconst || stexpr1->type == isconst) &&
                     !IS_OVERFLOW_ATTR(LEXLEV))
@@ -2042,7 +2037,6 @@ void readnxtinst(void) {
                     tmp1 = val_when_exponent0(stexpr2->data.isconst.real_significand, stexpr2->data.isconst.real_exponent);
                 }
                 switch (tmp1) {
-                    // replace x * 0.0 with 0
                     case 0:
                         if (!strictieee) {
                             if (stexpr1->type == isconst) {
@@ -2056,7 +2050,6 @@ void readnxtinst(void) {
                         }
                         break;
 
-                    // eliminate x * +-1.0
                     case -1:
                     case 1:
                         if (stexpr1->type == isconst) {
@@ -2070,7 +2063,6 @@ void readnxtinst(void) {
                         eliminated = true;
                         break;
 
-                    // change x * 2.0 into x + x
                     case -2:
                     case 2:
                         if (stexpr1->type == isconst) {
@@ -2100,7 +2092,7 @@ void readnxtinst(void) {
                     tmp1 = -tmp1;
                 }
                 if (is_power2(tmp1) && stexpr2->data.isconst.real_exponent == 0) {
-                    expr = transform_float_div(tmp1, negative, stexpr2->data.isconst.real_exponent, DTYPE, &loc, stexpr1, stexpr2);
+                    expr = transform_float_div(tmp1, negative, stexpr2->data.isconst.real_exponent, DTYPE, &var, stexpr1, stexpr2);
                     if (expr != NULL) {
                         stexpr2 = expr;
                         OPC = Umpy;
@@ -2154,7 +2146,7 @@ void readnxtinst(void) {
                                         if (DTYPE == Qdt || DTYPE == Rdt) {
                                             ustack->value = 0;
                                             ustack->expr->datatype = Jdt;
-                                            cvt_to_float(ustack, &loc, stexpr1, stexpr2);
+                                            cvt_to_float(ustack, &var, stexpr1, stexpr2);
                                         }
                                     } else {
                                         eliminated = false;
@@ -2218,14 +2210,8 @@ void readnxtinst(void) {
                                         }
                                     }
                                     break;
-
-                                default:
-                                    break;
                             }
                         }
-                        break;
-
-                    default:
                         break;
                 }
             }
@@ -2295,7 +2281,6 @@ void readnxtinst(void) {
                         stexpr2 = expr;
                     }
                 }
-            // swap == and != if the left side isn't a var (even if the right side isn't one either)
             } else if (OPC == Uequ || OPC == Uneq) {
                 if (stexpr1->type != isvar) {
                     expr = stexpr2;
@@ -2304,7 +2289,7 @@ void readnxtinst(void) {
                 }
             }
 
-            expr = readnxtinst_searchloop(isophash(OPC, stexpr1, stexpr2), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(isophash(OPC, stexpr1, stexpr2), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
@@ -2341,18 +2326,15 @@ void readnxtinst(void) {
                     case Uuni:
                         expr->data.isop.datasize = LENGTH;
                         break;
-
-                    default:
-                        break;
                 }
                 if (OPC == Uinn) {
-                    expr->data.isop.aux2.v1.unk3C = IONE; // 'check flag'
+                    expr->data.isop.aux2.v1.unk3C = IONE;
                 }
                 expr->data.isop.aux2.v1.overflow_attr = IS_OVERFLOW_ATTR(LEXLEV);
                 expr->count = 1;
-                expr->data.isop.temploc = 0;
-                expr->visited = 0;
-                expr->unk4 = 0;
+                expr->data.isop.unk30 = 0;
+                expr->unk5 = false;
+                expr->unk4 = false;
                 switch (OPC) {
                     case Uequ:
                     case Ugeq:
@@ -2360,11 +2342,8 @@ void readnxtinst(void) {
                     case Uleq:
                     case Ules:
                     case Uneq:
-                        expr->data.isop.aux.unk38_trep = NULL;
-                        expr->data.isop.aux2.unk3C_trep = NULL;
-                        break;
-
-                    default:
+                        expr->data.isop.aux.unk38 = NULL;
+                        expr->data.isop.aux2.v2.unk3C = 0;
                         break;
                 }
             } else {
@@ -2385,7 +2364,7 @@ void readnxtinst(void) {
                 ustack->value += stval2 * IONE;
             }
             stexpr1 = ustack->expr;
-            expr = readnxtinst_searchloop(isophash(OPC, stexpr1, stexpr2), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(isophash(OPC, stexpr1, stexpr2), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
@@ -2403,9 +2382,9 @@ void readnxtinst(void) {
                 expr->count = 1;
                 expr->data.isop.op2 = stexpr2;
                 expr->data.isop.aux2.v1.overflow_attr = false;
-                expr->data.isop.temploc = 0;
-                expr->visited = 0;
-                expr->unk4 = 0;
+                expr->data.isop.unk30 = 0;
+                expr->unk5 = false;
+                expr->unk4 = false;
                 expr->data.isop.datasize = IONE;
             } else {
                 incroccurrence(&expr);
@@ -2438,7 +2417,7 @@ void readnxtinst(void) {
                 ustack_add_value();
                 OPC = Umpy;
                 stexpr1 = ustack->expr;
-                expr = readnxtinst_searchloop(isophash(Umpy, stexpr1, stexpr2), &loc, stexpr1, stexpr2);
+                expr = readnxtinst_searchloop(isophash(Umpy, stexpr1, stexpr2), &var, stexpr1, stexpr2);
                 if (outofmem) {
                     return;
                 }
@@ -2451,9 +2430,9 @@ void readnxtinst(void) {
                     expr->data.isop.datatype = DTYPE;
                     expr->data.isop.aux2.v1.overflow_attr = false;
                     expr->count = 1;
-                    expr->data.isop.temploc = 0;
-                    expr->visited = 0;
-                    expr->unk4 = 0;
+                    expr->data.isop.unk30 = 0;
+                    expr->unk5 = false;
+                    expr->unk4 = false;
                     expr->data.isop.op2 = stexpr2;
                 } else {
                     incroccurrence(&expr);
@@ -2482,7 +2461,7 @@ void readnxtinst(void) {
 
             OPC = Uadd;
             stexpr2 = stexpr3;
-            expr = readnxtinst_searchloop(isophash(Uadd, stexpr1, stexpr3), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(isophash(Uadd, stexpr1, stexpr3), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
@@ -2494,9 +2473,9 @@ void readnxtinst(void) {
                 expr->data.isop.op2 = stexpr3;
                 expr->data.isop.aux2.v1.overflow_attr = false;
                 expr->count = 1;
-                expr->data.isop.temploc = 0;
-                expr->visited = 0;
-                expr->unk4 = 0;
+                expr->data.isop.unk30 = 0;
+                expr->unk5 = false;
+                expr->unk4 = false;
                 expr->data.isop.op1 = stexpr1;
             } else {
                 incroccurrence(&expr);
@@ -2530,7 +2509,7 @@ void readnxtinst(void) {
                     CONSTVAL.swpart.Ival = stexpr1->data.isconst.number.real.len - 1;
                     memcpy(ustrptr, &currealpool->c[stexpr1->data.isconst.number.real.disp & 0xff] + 1, stexpr1->data.isconst.number.real.len - 1);
                 }
-                expr = readnxtinst_searchloop(realhash(CONSTVAL.swpart.Ival), &loc, stexpr1, stexpr2);
+                expr = readnxtinst_searchloop(realhash(CONSTVAL.swpart.Ival), &var, stexpr1, stexpr2);
                 if (outofmem) {
                     return;
                 }
@@ -2571,7 +2550,7 @@ void readnxtinst(void) {
                 }
 
                 stexpr1 = ustack->expr;
-                expr = readnxtinst_searchloop(isophash(OPC, stexpr1, NULL), &loc, stexpr1, stexpr2);
+                expr = readnxtinst_searchloop(isophash(OPC, stexpr1, NULL), &var, stexpr1, stexpr2);
                 if (outofmem) {
                     return;
                 }
@@ -2592,9 +2571,9 @@ void readnxtinst(void) {
                     }
                     expr->count = 1;
                     expr->data.isop.aux2.v1.overflow_attr = IS_OVERFLOW_ATTR(LEXLEV);
-                    expr->data.isop.temploc = 0;
-                    expr->visited = 0;
-                    expr->unk4 = 0;
+                    expr->data.isop.unk30 = 0;
+                    expr->unk5 = false;
+                    expr->unk4 = false;
                 } else {
                     incroccurrence(&expr);
                 }
@@ -2622,7 +2601,7 @@ void readnxtinst(void) {
             }
             ustack_add_value();
             stexpr1 = ustack->expr;
-            expr = readnxtinst_searchloop(opvalhash(OPC, stexpr1, IONE), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(opvalhash(OPC, stexpr1, IONE), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
@@ -2635,10 +2614,10 @@ void readnxtinst(void) {
                 expr->count = 1;
                 expr->data.isop.opc = OPC;
                 expr->data.isop.datasize = IONE;
-                expr->data.isop.temploc = NULL;
-                expr->visited = 0;
+                expr->data.isop.unk30 = 0;
+                expr->unk5 = false;
                 expr->data.isop.aux2.v1.overflow_attr = IS_OVERFLOW_ATTR(LEXLEV);
-                expr->unk4 = 0;
+                expr->unk4 = false;
             } else {
                 incroccurrence(&expr);
             }
@@ -2650,7 +2629,7 @@ void readnxtinst(void) {
         case Utyp: // XXX: untested
             if (OPC == Ucvt && (DTYPE2 == Jdt || DTYPE2 == Ldt) && (DTYPE == Qdt || DTYPE == Rdt) && !IS_OVERFLOW_ATTR(LEXLEV)) {
                 if (ustack->expr->type == isconst && ustack->value == 0) {
-                    cvt_to_float(ustack, &loc, stexpr1, stexpr2);
+                    cvt_to_float(ustack, &var, stexpr1, stexpr2);
                     return;
                 }
             } else if (DTYPE2 == DTYPE) {
@@ -2671,7 +2650,7 @@ void readnxtinst(void) {
 
             ustack_add_value();
             stexpr1 = ustack->expr;
-            expr = readnxtinst_searchloop(isophash(OPC, stexpr1, NULL), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(isophash(OPC, stexpr1, NULL), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
@@ -2684,10 +2663,10 @@ void readnxtinst(void) {
                 expr->data.isop.op2 = NULL;
                 expr->count = 1;
                 expr->data.isop.opc = OPC;
-                expr->data.isop.temploc = 0;
-                expr->visited = 0;
+                expr->data.isop.unk30 = 0;
+                expr->unk5 = false;
                 expr->data.isop.aux2.v1.overflow_attr = IS_OVERFLOW_ATTR(LEXLEV);
-                expr->unk4 = 0;
+                expr->unk4 = false;
             } else {
                 incroccurrence(&expr);
             }
@@ -2697,26 +2676,24 @@ void readnxtinst(void) {
         case Uadj: // XXX: untested
             ustack_add_value();
             stexpr1 = ustack->expr;
-            expr = readnxtinst_searchloop(opvalhash(OPC, stexpr1, OFFSET), &loc, stexpr1, stexpr2);
-
+            expr = readnxtinst_searchloop(opvalhash(OPC, stexpr1, OFFSET), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
-
             if (expr->type == empty) {
                 expr->type = isop;
                 expr->datatype = DTYPE;
-                expr->unk4 = 0;
-                expr->visited = 0;
-                expr->count = 1;
-                expr->data.isop.opc = OPC;
                 expr->data.isop.datatype = DTYPE;
                 expr->data.isop.op1 = stexpr1;
                 expr->data.isop.op2 = NULL;
-                expr->data.isop.datasize = OFFSET; // shift
-                expr->data.isop.aux2.v1.unk3C = LENGTH; // resulting length
+                expr->data.isop.opc = OPC;
+                expr->data.isop.datasize = OFFSET;
+                expr->count = 1;
                 expr->data.isop.aux2.v1.overflow_attr = false;
-                expr->data.isop.temploc = 0;
+                expr->data.isop.unk30 = 0;
+                expr->unk5 = false;
+                expr->unk4 = false;
+                expr->data.isop.aux2.v1.unk3C = LENGTH;
             } else {
                 incroccurrence(&expr);
             }
@@ -2726,7 +2703,7 @@ void readnxtinst(void) {
         case Uchkn: // XXX: untested
             ustack_add_value();
             stexpr1 = ustack->expr;
-            expr = readnxtinst_searchloop(isophash(OPC, stexpr1, NULL), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(isophash(OPC, stexpr1, NULL), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
@@ -2738,9 +2715,9 @@ void readnxtinst(void) {
                 expr->data.isop.op2 = NULL;
                 expr->count = 1;
                 expr->data.isop.aux2.v1.overflow_attr = false;
-                expr->data.isop.temploc = 0;
-                expr->visited = 0;
-                expr->unk4 = 0;
+                expr->data.isop.unk30 = 0;
+                expr->unk5 = false;
+                expr->unk4 = false;
                 expr->data.isop.opc = OPC;
             } else {
                 incroccurrence(&expr);
@@ -2755,16 +2732,13 @@ void readnxtinst(void) {
             stval1 = ustack->value;
             ustack->value = 0;
             IONE += stval1;
-
             if (OPC == Uilod && stexpr1->count >= 2 && LENGTH >= 4 && func_0043CE64(stexpr1, IONE)) {
                 return;
             }
-
-            expr = readnxtinst_searchloop(opvalhash(OPC, stexpr1, IONE), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(opvalhash(OPC, stexpr1, IONE), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
-
             if (expr->type == empty) {
                 expr->type = isop;
                 expr->datatype = DTYPE;
@@ -2774,44 +2748,44 @@ void readnxtinst(void) {
                 expr->count = 1;
                 expr->data.isop.aux2.v1.overflow_attr = false;
                 expr->data.isop.opc = OPC;
-                expr->data.isop.datasize = IONE; // offset from lda
+                expr->data.isop.datasize = IONE;
                 expr->data.isop.aux2.v1.unk3C = (unsigned short)LENGTH;
-                expr->data.isop.aux2.v1.align = (unsigned char)(LEXLEV & ~7);
-                if (expr->data.isop.aux2.v1.align == 0) {
-                    expr->data.isop.aux2.v1.align = (unsigned char)(expr->data.isop.aux2.v1.unk3C * 8);
+                expr->data.isop.aux2.v1.unk3F = (unsigned char)(LEXLEV & ~7);
+                if (expr->data.isop.aux2.v1.unk3F == 0) {
+                    expr->data.isop.aux2.v1.unk3F = (unsigned char)(expr->data.isop.aux2.v1.unk3C * 8);
                 }
                 if (stexpr1->type == isconst) {
-                    if (stexpr1->data.isconst.number.intval % (expr->data.isop.aux2.v1.align / 8) != 0) {
-                        expr->data.isop.aux2.v1.align = 8;
+                    if (stexpr1->data.isconst.number.intval % (expr->data.isop.aux2.v1.unk3F / 8) != 0) {
+                        expr->data.isop.aux2.v1.unk3F = 8;
                         tmp1 = stexpr1->data.isconst.number.intval;
                         while ((tmp1 & 1) == 0) {
-                            expr->data.isop.aux2.v1.align *= 2;
+                            expr->data.isop.aux2.v1.unk3F *= 2;
                             tmp1 /= 2;
                         }
                     }
                 } else if (stexpr1->type == islda) {
-                    if (stexpr1->data.islda_isilda.address.addr % (expr->data.isop.aux2.v1.align / 8) != 0) {
-                        expr->data.isop.aux2.v1.align = 8;
-                        tmp1 = stexpr1->data.islda_isilda.address.addr;
+                    if (stexpr1->data.islda_isilda.var_data.addr % (expr->data.isop.aux2.v1.unk3F / 8) != 0) {
+                        expr->data.isop.aux2.v1.unk3F = 8;
+                        tmp1 = stexpr1->data.islda_isilda.var_data.addr;
                         while ((tmp1 & 1) == 0) {
-                            expr->data.isop.aux2.v1.align *= 2;
+                            expr->data.isop.aux2.v1.unk3F *= 2;
                             tmp1 /= 2;
                         }
                     }
                 }
-                expr->data.isop.temploc = 0;
-                expr->visited = 0;
-                expr->unk4 = 0;
-                expr->data.isop.aux.mtagno = OFFSET;
+                expr->data.isop.unk30 = 0;
+                expr->unk5 = false;
+                expr->unk4 = false;
+                expr->data.isop.aux.unk38_int = OFFSET;
                 expr->data.isop.unk34 = findbaseaddr(stexpr1);
                 if (expr->datatype != Sdt && OPC != Uildv) {
-                    expr->killed = false;
-                    if (expr->initialVal) {
-                        expr->initialVal = !varkilled(expr, curgraphnode->varlisthead);
+                    expr->unk2 = false;
+                    if (expr->unk3) {
+                        expr->unk3 = !varkilled(expr, curgraphnode->varlisthead);
                     }
                 } else {
-                    expr->killed = true;
-                    expr->initialVal = false;
+                    expr->unk2 = true;
+                    expr->unk3 = false;
                 }
 
                 appendbbvarlst(expr);
@@ -2831,7 +2805,7 @@ void readnxtinst(void) {
                 return;
             }
 
-            expr = readnxtinst_searchloop(opvalhash(OPC, stexpr1, IONE), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(opvalhash(OPC, stexpr1, IONE), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
@@ -2845,48 +2819,48 @@ void readnxtinst(void) {
                 expr->count = 1;
                 expr->data.isop.aux2.v1.overflow_attr = false;
                 expr->data.isop.opc = OPC;
-                expr->data.isop.datasize = IONE; // offset from lda
+                expr->data.isop.datasize = IONE;
                 expr->data.isop.aux2.v1.unk3C = (unsigned short)LENGTH;
-                expr->data.isop.aux2.v1.align = (unsigned char)(LEXLEV & ~7);
+                expr->data.isop.aux2.v1.unk3F = (unsigned char)(LEXLEV & ~7);
 
-                if (expr->data.isop.aux2.v1.align == 0) {
-                    expr->data.isop.aux2.v1.align = (unsigned char)(expr->data.isop.aux2.v1.unk3C * 8);
+                if (expr->data.isop.aux2.v1.unk3F == 0) {
+                    expr->data.isop.aux2.v1.unk3F = (unsigned char)(expr->data.isop.aux2.v1.unk3C * 8);
                 }
 
                 if (stexpr1->type == isconst) {
-                    if (stexpr1->data.isconst.number.intval % (expr->data.isop.aux2.v1.align / 8) != 0) {
-                        expr->data.isop.aux2.v1.align = 8;
+                    if (stexpr1->data.isconst.number.intval % (expr->data.isop.aux2.v1.unk3F / 8) != 0) {
+                        expr->data.isop.aux2.v1.unk3F = 8;
                         tmp1 = stexpr1->data.isconst.number.intval;
                         while ((tmp1 & 1) == 0) {
-                            expr->data.isop.aux2.v1.align *= 2;
+                            expr->data.isop.aux2.v1.unk3F *= 2;
                             tmp1 /= 2;
                         }
                     }
                 } else if (stexpr1->type == islda) {
-                    if (stexpr1->data.islda_isilda.address.addr % (expr->data.isop.aux2.v1.align / 8) != 0) {
-                        expr->data.isop.aux2.v1.align = 8;
-                        tmp1 = stexpr1->data.islda_isilda.address.addr;
+                    if (stexpr1->data.islda_isilda.var_data.addr % (expr->data.isop.aux2.v1.unk3F / 8) != 0) {
+                        expr->data.isop.aux2.v1.unk3F = 8;
+                        tmp1 = stexpr1->data.islda_isilda.var_data.addr;
                         while ((tmp1 & 1) == 0) {
-                            expr->data.isop.aux2.v1.align *= 2;
+                            expr->data.isop.aux2.v1.unk3F *= 2;
                             tmp1 /= 2;
                         }
                     }
                 }
 
-                expr->data.isop.temploc = 0;
-                expr->visited = 0;
-                expr->unk4 = 0;
-                expr->data.isop.aux.mtagno = OFFSET;
+                expr->data.isop.unk30 = 0;
+                expr->unk5 = false;
+                expr->unk4 = false;
+                expr->data.isop.aux.unk38_int = OFFSET;
                 expr->data.isop.unk34 = findbaseaddr(stexpr1);
 
                 if (expr->datatype != Sdt && OPC != Uirlv) {
-                    expr->killed = false;
-                    if (expr->initialVal) {
-                        expr->initialVal = !varkilled(expr, curgraphnode->varlisthead);
+                    expr->unk2 = false;
+                    if (expr->unk3) {
+                        expr->unk3 = !varkilled(expr, curgraphnode->varlisthead);
                     }
                 } else {
-                    expr->killed = true;
-                    expr->initialVal = false;
+                    expr->unk2 = true;
+                    expr->unk3 = false;
                 }
 
                 appendbbvarlst(expr);
@@ -2898,7 +2872,6 @@ void readnxtinst(void) {
             ustack->expr = expr;
             return;
 
-        // struct/array comparison
         case Uiequ: // XXX: untested
         case Uigeq: // XXX: untested
         case Uigrt: // XXX: untested
@@ -2910,29 +2883,29 @@ void readnxtinst(void) {
             ustack = ustack->down;
             ustack_add_value();
             stexpr1 = ustack->expr;
-            expr = readnxtinst_searchloop(isophash(OPC, stexpr1, stexpr2), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(isophash(OPC, stexpr1, stexpr2), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
             if (expr->type == empty) {
                 expr->type = isop;
-                expr->killed = false;
-                expr->unk4 = 0;
-                expr->visited = 0;
                 expr->datatype = Mdt;
                 expr->data.isop.datatype = Jdt;
                 expr->data.isop.op1 = stexpr1;
-                expr->data.isop.op2 = stexpr2;
                 expr->data.isop.opc = OPC;
                 expr->count = 1;
-                expr->data.isop.temploc = 0;
                 expr->data.isop.aux2.v1.overflow_attr = false;
-                expr->data.isop.aux2.v1.unk3C = IONE; // number of bits to compare at a time
-                expr->data.isop.datasize = LENGTH; // size of the struct/array in bytes
+                expr->data.isop.op2 = stexpr2;
+                expr->data.isop.datasize = LENGTH;
+                expr->unk2 = false;
+                expr->data.isop.unk30 = 0;
+                expr->unk5 = false;
+                expr->unk4 = false;
+                expr->data.isop.aux2.v1.unk3C = IONE;
                 expr->data.isop.unk34 = findbaseaddr(stexpr1);
                 expr->data.isop.aux.unk38 = findbaseaddr(stexpr2);
-                if (expr->initialVal) {
-                    expr->initialVal = !varkilled(expr, curgraphnode->varlisthead);
+                if (expr->unk3) {
+                    expr->unk3 = !varkilled(expr, curgraphnode->varlisthead);
                 }
                 appendbbvarlst(expr);
                 lodkillprev(expr);
@@ -2954,7 +2927,7 @@ void readnxtinst(void) {
             for (i = 0; i < CONSTVAL.swpart.Ival; i++) {
                 write_char(strp.c_file, ustrptr[i], 1);
             }
-            expr = readnxtinst_searchloop(isconsthash(strpdisplace), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(isconsthash(strpdisplace), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
@@ -2973,14 +2946,14 @@ void readnxtinst(void) {
             if (dokpicopt && MTYPE == Smt && !in_fsym(IONE) && !is_gp_relative(IONE)) {
                 if (lang == LANG_FORTRAN) {
                     if (ustack->expr->type == islda &&
-                            (curblk == ustack->expr->data.islda_isilda.address.blockno ||
-                             (f77_static_flag && in_fsym(ustack->expr->data.islda_isilda.address.blockno))))
+                            (curblk == ustack->expr->data.islda_isilda.var_data.blockno ||
+                             (f77_static_flag && in_fsym(ustack->expr->data.islda_isilda.var_data.blockno))))
                     {
                         use_c_semantics = true;
                     } else if (ustack->expr->type == isop && ustack->expr->data.isop.opc == Ucvt &&
                             ustack->expr->data.isop.op1->type == islda &&
-                            (curblk == ustack->expr->data.isop.op1->data.islda_isilda.address.blockno ||
-                             (f77_static_flag && in_fsym(ustack->expr->data.isop.op1->data.islda_isilda.address.blockno))))
+                            (curblk == ustack->expr->data.isop.op1->data.islda_isilda.var_data.blockno ||
+                             f77_static_flag && in_fsym(ustack->expr->data.isop.op1->data.islda_isilda.var_data.blockno)))
                     {
                         use_c_semantics = true;
                     }
@@ -3018,36 +2991,35 @@ void readnxtinst(void) {
                 ustack->expr = stexpr1;
             }
 
-            loc.memtype = MTYPE;
-            loc.blockno = IONE;
-            loc.addr = OFFSET;
-            if (loc.memtype == Rmt) {
-                loc.blockno = 0;
-                if (curmst != NULL && curmst->u.mst.cup_level != 0 && OFFSET == r_v0) {
+            var.memtype = MTYPE;
+            var.blockno = IONE;
+            var.addr = OFFSET;
+            if (var.memtype == Rmt) {
+                var.blockno = 0;
+                if (curmst != NULL && curmst->u.mst.cup_level && OFFSET == r_v0) {
                     if (ustack->expr->type == isvar) {
                         func_0043CBFC(ustack);
                     } else if (ustack->expr->type == issvar) {
-                        ustack->expr->data.isvar_issvar.location.level = 200;
-                        ustack->expr->data.isvar_issvar.vreg = true;
+                        ustack->expr->data.isvar_issvar.var_data.level = 200;
+                        ustack->expr->data.isvar_issvar.unk22 = true;
                         ustack->expr->var_access_list->unk8 = true;
                     }
                 }
             }
 
             if (lang != LANG_FORTRAN) {
-                // the first store of $v0 to the stack sets staticlinkloc, the stack offset used for shared variables
                 if ((graphhead == curgraphnode || (lang == LANG_ADA && stattail->opc == Ulab && IS_EXCEPTION_ATTR(stattail->u.label.flags))) &&
                         ustack->expr->type == isvar &&
-                        ustack->expr->data.isvar_issvar.location.memtype == Rmt &&
-                        ustack->expr->data.isvar_issvar.location.addr == r_v0)
+                        ustack->expr->data.isvar_issvar.var_data.memtype == Rmt &&
+                        ustack->expr->data.isvar_issvar.var_data.addr == r_v0)
                 {
                     TRAP_IF(staticlinkloc != 0);
-                    staticlinkloc = loc.addr;
-                    expr = searchvar(isvarhash(loc), &loc);
+                    staticlinkloc = var.addr;
+                    expr = searchvar(isvarhash(var), &var);
                     expr->data.isvar_issvar.size = 4;
                     expr->graphnode = NULL;
-                    expr->data.isvar_issvar.vreg = true;
-                    expr->data.isvar_issvar.veqv = false;
+                    expr->data.isvar_issvar.unk22 = true;
+                    expr->data.isvar_issvar.unk21 = false;
                     decreasecount(ustack->expr);
                     ustack = ustack->down;
                     extendstat(Unop);
@@ -3056,7 +3028,7 @@ void readnxtinst(void) {
                 }
             }
 
-            expr = readnxtinst_searchloop(isvarhash(loc), &loc, stexpr1, stexpr2);
+            expr = readnxtinst_searchloop(isvarhash(var), &var, stexpr1, stexpr2);
             if (outofmem) {
                 return;
             }
@@ -3066,14 +3038,14 @@ void readnxtinst(void) {
                     func_0043CBFC(ustack->down);
                 } else {
                     TRAP_IF(ustack->down->expr->type != issvar);
-                    ustack->down->expr->data.isvar_issvar.location.level = 200;
-                    ustack->down->expr->data.isvar_issvar.vreg = true;
+                    ustack->down->expr->data.isvar_issvar.var_data.level = 200;
+                    ustack->down->expr->data.isvar_issvar.unk22 = true;
                     ustack->down->expr->var_access_list->unk8 = true;
                 }
             }
 
             // eliminate redundant stores (x = x)
-            if (ustack->expr == expr && expr->data.isvar_issvar.location.memtype != Rmt && expr->data.isvar_issvar.location.memtype != Amt) {
+            if (ustack->expr == expr && expr->data.isvar_issvar.var_data.memtype != Rmt && expr->data.isvar_issvar.var_data.memtype != Amt) {
                 decreasecount(expr);
                 ustack = ustack->down;
                 if (OPC == Uisst) {
@@ -3085,37 +3057,27 @@ void readnxtinst(void) {
                 return;
             }
 
-            lval_ant = true;
-            store_ant = true;
+            unk1C = true;
+            unk1E = true;
             if (expr->type != empty) {
-                // The variable was loaded earlier in the block
                 stmt = expr->data.isvar_issvar.assignment;
                 if (stmt == NULL) {
-                    // The variable's assignment occurred in a different block, or is undefined
-                    expr->killed = true;
+                    expr->unk2 = true;
                     expr2 = expr;
                     expr = appendchain(expr->table_index);
                     if (outofmem) {
                         return;
                     }
                     expr->graphnode = curgraphnode;
-                    expr->data.isvar_issvar.vreg = expr2->data.isvar_issvar.vreg;
-                    expr->initialVal = false;
-                    expr->data.isvar_issvar.veqv = expr2->data.isvar_issvar.veqv;
-
-                    // TODO: does this make sense with current names...?
-                    // L-value is not anticipated since it was used before this assignment
-                    lval_ant = false;
-                    // the assignment IS anticipated since it's the first assignment in the block
-                    store_ant = true;
-                } else if (expr->data.isvar_issvar.assigned_value != NULL && stmt->u.store.lval_av) {
-                    // Variable was assigned, and was not used before this assignment
-
-                    // The variable was assigned, but the assigned value hasn't changed since the assignment
-
-                    // Remove the redundant store
+                    expr->data.isvar_issvar.unk22 = expr2->data.isvar_issvar.unk22;
+                    expr->unk3 = false;
+                    expr->data.isvar_issvar.unk21 = expr2->data.isvar_issvar.unk21;
+                    unk1C = false;
+                    unk1E = true;
+                } else if (expr->data.isvar_issvar.assigned_value != NULL && stmt->u.store.unk1D) {
                     stmt->u.store.var_access_list_item->type = 0;
                     if (has_volt_ovfw(stmt->expr->data.isvar_issvar.assigned_value)) {
+
                         stmt->opc = Upop;
                         stmt->u.pop.dtype = expr->datatype;
                         stmt->u.pop.unk15 = 0;
@@ -3127,10 +3089,9 @@ void readnxtinst(void) {
                         decreasecount(expr->data.isvar_issvar.assigned_value);
                         stmt->opc = Unop;
                     }
-                    lval_ant = stmt->u.store.lval_ant;
-                    store_ant = stmt->u.store.store_ant;
-                } else if (ustack->expr == expr->data.isvar_issvar.assigned_value && stmt->u.store.store_av) {
-                    // assigning the same value, and 
+                    unk1C = stmt->u.store.unk1C;
+                    unk1E = stmt->u.store.unk1E;
+                } else if (ustack->expr == expr->data.isvar_issvar.assigned_value && stmt->u.store.unk1F) {
                     decreasecount(ustack->expr);
                     ustack = ustack->down;
                     if (OPC == Uisst) {
@@ -3139,19 +3100,19 @@ void readnxtinst(void) {
                     }
                     return;
                 } else {
-                    expr->killed = true;
-                    stmt->u.store.store_av = false;
+                    expr->unk2 = true;
+                    stmt->u.store.unk1F = false;
                     expr2 = expr;
                     expr = appendchain(expr->table_index);
                     if (outofmem) {
                         return;
                     }
                     expr->graphnode = curgraphnode;
-                    expr->data.isvar_issvar.vreg = expr2->data.isvar_issvar.vreg;
-                    expr->initialVal = false;
-                    expr->data.isvar_issvar.veqv = expr2->data.isvar_issvar.veqv;
-                    lval_ant = false;
-                    store_ant = false;
+                    expr->data.isvar_issvar.unk22 = expr2->data.isvar_issvar.unk22;
+                    expr->unk3 = false;
+                    expr->data.isvar_issvar.unk21 = expr2->data.isvar_issvar.unk21;
+                    unk1C = false;
+                    unk1E = false;
                 }
             }
 
@@ -3161,36 +3122,35 @@ void readnxtinst(void) {
                 } else {
                     expr->type = issvar;
                 }
-                expr->data.isvar_issvar.location = loc;
+                expr->data.isvar_issvar.var_data = var;
                 expr->datatype = DTYPE;
                 expr->data.isvar_issvar.size = LENGTH;
-                expr->data.isvar_issvar.location.level = blktolev(loc.blockno);
-                expr->initialVal = false;
+                expr->data.isvar_issvar.var_data.level = blktolev(var.blockno);
+                expr->unk3 = false;
                 expr->count = 0;
-                expr->data.isvar_issvar.copy = NULL;
+                expr->data.isvar_issvar.unk30 = NULL;
 
                 if (OPC == Uisst) {
-                    expr->data.isvar_issvar.temploc = 0;
-                    expr->unk4 = 0;
-                    expr->visited = 0;
-                    expr->data.isvar_issvar.outer_stack = ustack->down->expr;
+                    expr->data.isvar_issvar.unk3C = 0;
+                    expr->unk4 = false;
+                    expr->unk5 = false;
+                    expr->data.isvar_issvar.unk24 = ustack->down->expr;
                 } else {
-                    expr->data.isvar_issvar.outer_stack = NULL;
+                    expr->data.isvar_issvar.unk24 = NULL;
                 }
-                if (!expr->data.isvar_issvar.veqv) {
-                    expr->killed = false;
+                if (!expr->data.isvar_issvar.unk21) {
+                    expr->unk2 = false;
                 } else {
-                    expr->killed = true;
+                    expr->unk2 = true;
                 }
                 expr->var_access_list = NULL;
                 expr->data.isvar_issvar.is_volatile = IS_OVERFLOW_ATTR(LEXLEV);
             }
 
-            if (expr->data.isvar_issvar.veqv) {
-                lval_ant = false;
-                store_ant = false;
+            if (expr->data.isvar_issvar.unk21) {
+                unk1C = false;
+                unk1E = false;
             }
-
             if (lang != LANG_C ||
                     ((expr->datatype == Adt || expr->datatype == Idt || expr->datatype == Jdt || expr->datatype == Kdt || expr->datatype == Ldt) && expr->data.isvar_issvar.size >= 4)) {
                 if (!checkincre(ustack->expr, expr, &increment_result)) {
@@ -3209,14 +3169,14 @@ void readnxtinst(void) {
             
             if (lang == LANG_FORTRAN) {
                 if (ustack->expr->type == islda &&
-                        (curblk == ustack->expr->data.islda_isilda.address.blockno ||
-                         (f77_static_flag && in_fsym(ustack->expr->data.islda_isilda.address.blockno))))
+                        (curblk == ustack->expr->data.islda_isilda.var_data.blockno ||
+                         (f77_static_flag && in_fsym(ustack->expr->data.islda_isilda.var_data.blockno))))
                 {
                     use_c_semantics = true;
                 } else if (ustack->expr->type == isop && ustack->expr->data.isop.opc == Ucvt &&
                         ustack->expr->data.isop.op1->type == islda &&
-                        (curblk == ustack->expr->data.isop.op1->data.islda_isilda.address.blockno ||
-                         (f77_static_flag && in_fsym(ustack->expr->data.isop.op1->data.islda_isilda.address.blockno))))
+                        (curblk == ustack->expr->data.isop.op1->data.islda_isilda.var_data.blockno ||
+                         f77_static_flag && in_fsym(ustack->expr->data.isop.op1->data.islda_isilda.var_data.blockno)))
                 {
                     use_c_semantics = true;
                 }
@@ -3226,12 +3186,12 @@ void readnxtinst(void) {
                 use_c_semantics = true;
             }
 
-            if (ustack->expr->type == isvar && ustack->expr->data.isvar_issvar.location.memtype == Amt && in_outparlist(ustack->expr->data.isvar_issvar.location.addr) == NULL) { 
-                stattail->outpar = true;
-                lastmst->u.mst.loc = ustack->expr->data.isvar_issvar.location.addr;
-                insert_outparlist(ustack->expr->data.isvar_issvar.location.addr, expr);
+            if (ustack->expr->type == isvar && ustack->expr->data.isvar_issvar.var_data.memtype == Amt && !in_outparlist(ustack->expr->data.isvar_issvar.var_data.addr)) { 
+                stattail->unk3 = true;
+                lastmst->u.mst.loc = ustack->expr->data.isvar_issvar.var_data.addr;
+                insert_outparlist(ustack->expr->data.isvar_issvar.var_data.addr, expr);
             } else {
-                stattail->outpar = false;
+                stattail->unk3 = false;
             }
 
             ustack = ustack->down;
@@ -3242,20 +3202,20 @@ void readnxtinst(void) {
 
             stattail->expr = expr;
             expr->data.isvar_issvar.assignment = stattail;
-            if (!stattail->outpar) {
-                stattail->u.store.lval_ant = lval_ant;
-                if (!expr->data.isvar_issvar.vreg && lval_ant) {
-                    stattail->u.store.lval_ant = !strlkilled(stattail, curgraphnode->varlisthead);
+            if (!stattail->unk3) {
+                stattail->u.store.unk1C = unk1C;
+                if (!expr->data.isvar_issvar.unk22 && unk1C) {
+                    stattail->u.store.unk1C = !strlkilled(stattail, curgraphnode->varlisthead);
                 }
-                stattail->u.store.store_ant = store_ant;
-                if (!expr->data.isvar_issvar.vreg && store_ant) {
-                    stattail->u.store.store_ant = !strskilled(stattail, curgraphnode->varlisthead);
+                stattail->u.store.unk1E = unk1E;
+                if (!expr->data.isvar_issvar.unk22 && unk1E) {
+                    stattail->u.store.unk1E = !strskilled(stattail, curgraphnode->varlisthead);
                 }
-                if (stattail->expr->data.isvar_issvar.location.memtype == Rmt) {
-                    stattail->u.store.store_ant = false;
+                if (stattail->expr->data.isvar_issvar.var_data.memtype == Rmt) {
+                    stattail->u.store.unk1E = false;
                 }
-                stattail->u.store.lval_av = !expr->data.isvar_issvar.veqv;
-                stattail->u.store.store_av = !expr->data.isvar_issvar.veqv;
+                stattail->u.store.unk1D = !expr->data.isvar_issvar.unk21;
+                stattail->u.store.unk1F = !expr->data.isvar_issvar.unk21;
                 if (increment_result == 1 && !hasvolatile(expr->data.isvar_issvar.assigned_value)) {
                     switch (stattail->expr->datatype) {
                         case Adt:
@@ -3264,31 +3224,31 @@ void readnxtinst(void) {
                         case Jdt:
                         case Kdt:
                         case Ldt:
-                            stattail->is_increment = true;
+                            stattail->unk1 = true;
                             break;
 
                         default:
-                            stattail->is_increment = false;
+                            stattail->unk1 = false;
                             break;
                     }
                 } else {
-                    stattail->is_increment = false;
+                    stattail->unk1 = false;
                 }
             } else {
-                stattail->u.store.lval_ant = false;
-                stattail->u.store.store_ant = false;
-                stattail->u.store.lval_av = false;
-                stattail->u.store.store_av = false;
-                stattail->is_increment = false;
+                stattail->u.store.unk1C = false;
+                stattail->u.store.unk1E = false;
+                stattail->u.store.unk1D = false;
+                stattail->u.store.unk1F = false;
+                stattail->unk1 = false;
             }
-            stattail->u.store.u.str.srcands = NULL;
-            stattail->u.store.u.str.recurs = NULL;
-            stattail->suppressed_iv = false;
-            if (!expr->data.isvar_issvar.vreg) {
+            stattail->u.store.u.str.unk2C = 0;
+            stattail->u.store.u.str.unk30 = 0;
+            stattail->unk2 = false;
+            if (!expr->data.isvar_issvar.unk22) {
                 strkillprev(stattail);
             }
             appendstorelist();
-            if (expr->data.isvar_issvar.vreg) {
+            if (expr->data.isvar_issvar.unk22) {
                 curgraphnode->varlisttail->unk8 = true;
             }
             loc_not_yet_seen = false;
@@ -3345,8 +3305,8 @@ void readnxtinst(void) {
                     ustack_add_value();
                     if (ustack->expr->type == isvar) {
                         ustack->expr = binopwithconst(Uneq, ustack->expr, 0);
-                        ustack->expr->data.isop.aux.unk38_trep = NULL;
-                        ustack->expr->data.isop.aux2.unk3C_trep = NULL;
+                        ustack->expr->data.isvar_issvar.assignment = NULL;
+                        ustack->expr->data.isvar_issvar.unk3C = 0;
                     }
                     stattail->expr = ustack->expr;
                     ustack = ustack->down;
@@ -3397,161 +3357,97 @@ void readnxtinst(void) {
                 successors->graphnode = target_graphnode;
                 successors->next = curgraphnode->successors;
                 curgraphnode->successors = successors;
-            } else {
-                // loop body?
-                if (stattail->prev->opc == Ulbdy) {
-                    target_graphnode->unkBb4 = true;
-                }
-
-                target_graphnode->blockno = IONE;
-                target_graphnode->interprocedural_controlflow = (LEXLEV & (GOOB_TARGET | EXCEPTION_ATTR | EXTERN_LAB_ATTR | EXCEPTION_END_ATTR | EXCEPTION_FRAME_START_ATTR | EXCEPTION_FRAME_END_ATTR | 0x1c0)) != 0;
-                if (curgraphnode != NULL) {
-                    if (curgraphnode->stat_tail->opc == Ufjp || curgraphnode->stat_tail->opc == Utjp) {
-                        if (curgraphnode->stat_tail->u.jp.target_blockno == IONE)  {
-                            // empty if (...) { } body, eliminate the whole statement
-                            if (!has_volt_ovfw(curgraphnode->stat_tail->expr)) {
-                                decreasecount(curgraphnode->stat_tail->expr);
-                                curgraphnode->stat_tail->opc = Unop;
-                            } else {
-                                // the if-expression contains a volatile load or should be
-                                // overflow-checked, so keep the expression but eliminate the jump.
-                                curgraphnode->stat_tail->opc = Upop;
-                                curgraphnode->stat_tail->u.pop.dtype = Jdt;
-                                curgraphnode->stat_tail->u.pop.unk15 = 0;
-                            }
-                        }
-                    }
-
-                    found = false;
-                    successors = curgraphnode->successors;
-                    while (successors != NULL && !found) {
-                        if (successors->graphnode->blockno == IONE) {
-                            found = true;
-                        } else {
-                            successors = successors->next;
-                        }
-                    }
-
-                    if (!found) {
-                        predecessors = alloc_new(sizeof(struct GraphnodeList), &perm_heap);
-                        if (predecessors == NULL) {
-                            outofmem = true;
-                            return;
-                        }
-                        predecessors->graphnode = curgraphnode;
-                        predecessors->next = target_graphnode->predecessors;
-                        target_graphnode->predecessors = predecessors;
-
-                        successors = alloc_new(sizeof(struct GraphnodeList), &perm_heap);
-                        if (successors == NULL) {
-                            outofmem = true;
-                            return;
-                        }
-                        successors->graphnode = target_graphnode;
-                        successors->next = curgraphnode->successors;
-                        curgraphnode->successors = successors;
-                    }
-                }
-
-                curgraphnode = target_graphnode;
-                curgraphnode->stat_head = stattail;
-                stattail->graphnode = curgraphnode;
-                curgraphnode->num = curstaticno++;
+                return;
             }
+
+            // loop body?
+            if (stattail->prev->opc == Ulbdy) {
+                target_graphnode->unkBb4 = true;
+            }
+
+            target_graphnode->blockno = IONE;
+            target_graphnode->unk4 = (LEXLEV & (GOOB_TARGET | EXCEPTION_ATTR | EXTERN_LAB_ATTR | EXCEPTION_END_ATTR | EXCEPTION_FRAME_START_ATTR | EXCEPTION_FRAME_END_ATTR | 0x1c0)) != 0;
+            if (curgraphnode != NULL) {
+                if (curgraphnode->stat_tail->opc == Ufjp || curgraphnode->stat_tail->opc == Utjp) {
+                    if (curgraphnode->stat_tail->u.jp.target_blockno == IONE)  {
+                        // empty if (...) { } body, eliminate the whole statement
+                        if (!has_volt_ovfw(curgraphnode->stat_tail->expr)) {
+                            decreasecount(curgraphnode->stat_tail->expr);
+                            curgraphnode->stat_tail->opc = Unop;
+                        } else {
+                            // the if-expression contains a volatile load or should be
+                            // overflow-checked, so keep the expression but eliminate the jump.
+                            curgraphnode->stat_tail->opc = Upop;
+                            curgraphnode->stat_tail->u.pop.dtype = Jdt;
+                            curgraphnode->stat_tail->u.pop.unk15 = 0;
+                        }
+                    }
+                }
+
+                found = false;
+                successors = curgraphnode->successors;
+                while (successors != NULL && !found) {
+                    if (IONE == successors->graphnode->blockno) {
+                        found = true;
+                    } else {
+                        successors = successors->next;
+                    }
+                }
+
+                if (!found) {
+                    predecessors = alloc_new(sizeof(struct GraphnodeList), &perm_heap);
+                    if (predecessors == NULL) {
+                        outofmem = true;
+                        return;
+                    }
+                    predecessors->graphnode = curgraphnode;
+                    predecessors->next = target_graphnode->predecessors;
+                    target_graphnode->predecessors = predecessors;
+
+                    successors = alloc_new(sizeof(struct GraphnodeList), &perm_heap);
+                    if (successors == NULL) {
+                        outofmem = true;
+                        return;
+                    }
+                    successors->graphnode = target_graphnode;
+                    successors->next = curgraphnode->successors;
+                    curgraphnode->successors = successors;
+                }
+            }
+
+            curgraphnode = target_graphnode;
+            curgraphnode->stat_head = stattail;
+            stattail->graphnode = curgraphnode;
+            curgraphnode->num = curstaticno++;
             return;
 
-        // switch statement jumptable definition
         case Uclab:
             extendstat(Uclab);
             if (outofmem) {
                 return;
             }
 
-            /*
-             * Frontends are inconsistent about how they emit switch statements.
-             *
-             * The pascal frontend emits the cases first, then the clab with ujps, and finally the xjp:
-             *
-             *     ujp  2        --\ jump ahead to xjp
-             *                     |
-             *     lab  3          |
-             *     lab  4          |
-             *     lab  5          |
-             *        etc..        |
-             *                     |
-             *     clab 6 len 2    |
-             *     ujp  4          |
-             *     ujp  3          |
-             *                     |
-             *     lab  2        <-/
-             *     lod  u32 Mmt 93 -5 1
-             *     xjp  u32 clab 6 default 5 lbnd 0 hbnd 1
-             *     lab  1       break label
-             *
-             * The C frontend is sane and emits the xjp, clab, and cases in order:
-             *
-             *     lod  s32 Pmt 5 0 4
-             *     xjp  s32 clab 13 default 12 lbnd 1 hbnd 5
-             *     clab 13 len 5
-             *     ujp  14
-             *     ujp  15
-             *     ujp  16
-             *     ujp  17
-             *     ujp  18
-             *
-             *     lab  14
-             *     lab  15
-             *     lab  16
-             *     lab  17
-             *     lab  18
-             *     ret
-             *
-             *     lab  12
-             *     ret
-             *
-             *
-             * Because of this, uopt has to detect both types of switch statements in Uclab and Uxjp depending on which comes first.
-             *
-             *! however, due to some quirks with dead code elimination and controlflow(),
-             *  it is possible for C's switch statement to be treated as a pascal
-             *  switch statement, if the switch appears in dead code:
-             *
-             *  return;
-             *
-             *  switch() {
-             *     case 1:
-             *         ...
-             *  }
-             *  The xjp is filtered out by dce, leaving only a clab.
-             */
+            // xjp
             stattail->u.label.blockno = IONE;
             stattail->u.label.length = LENGTH;
-
             graphnode = ingraph(IONE);
             if (graphnode == NULL) {
-                // Pascal frontend switch statement
                 appendgraph();
                 if (outofmem) {
                     return;
                 }
-
                 graphtail->blockno = IONE;
                 stattail->u.label.unk1C = false;
                 graphtail->stat_head = stattail;
                 graphnode = graphtail;
             } else {
-                // C frontend case statement
-
-                // xjp graphnode
                 graphnode = graphnode->predecessors->graphnode;
                 graphnode->stat_tail->u.xjp.case_stmts = stattail;
                 stattail->u.label.unk1C = true;
             }
 
             endblock_saved = endblock;
-            length = LENGTH;
-            clab_blockno = IONE;
-            for (i = 0; OPC != Uujp || i < length; i++) {
+            for (i = 0; OPC != Uujp || i != LENGTH; i++) {
                 getop();
                 if (OPC != Uujp) {
                     copyline();
@@ -3570,9 +3466,7 @@ void readnxtinst(void) {
                         target_graphnode = graphtail;
                         target_graphnode->blockno = IONE;
                     }
-
-                    // C frontend switch statement: the xjp was read first, so add the cases as predecessors here
-                    if (graphnode->blockno != clab_blockno) {
+                    if (IONE != graphnode->blockno) {
                         predecessors = alloc_new(sizeof(struct GraphnodeList), &perm_heap);
                         if (predecessors == NULL) {
                             outofmem = true;
@@ -3615,35 +3509,30 @@ void readnxtinst(void) {
             stattail->u.xjp.lbound_h = LBOUND_H;
             stattail->u.xjp.hbound_l = HBOUND_L;
             stattail->u.xjp.hbound_h = HBOUND_H;
-
             graphnode = ingraph(IONE);
 
             if (graphnode != NULL) {
-                // detect pascal frontend switch statement: the clab was read before xjp, so connect the jumps now
                 graphnode->stat_head->u.label.unk1C = true;
                 stattail->u.xjp.case_stmts = graphnode->stat_head;
 
                 // Move over the successors from the case labels graphnode and add predecessor at targets
                 curgraphnode->successors = graphnode->successors;
                 for (successors = graphnode->successors; successors != NULL; successors = successors->next) {
-                    predecessors = alloc_new(sizeof(struct GraphnodeList), &perm_heap);
-                    if (predecessors == NULL) {
+                    new_graphnode_list_item = alloc_new(sizeof(struct GraphnodeList), &perm_heap);
+                    if (new_graphnode_list_item == NULL) {
                         outofmem = true;
                         return;
                     }
-
-                    predecessors->graphnode = curgraphnode;
-                    predecessors->next = successors->graphnode->predecessors;
-                    successors->graphnode->predecessors = predecessors;
+                    new_graphnode_list_item->graphnode = curgraphnode;
+                    new_graphnode_list_item->next = successors->graphnode->predecessors;
+                    successors->graphnode->predecessors = new_graphnode_list_item;
                 }
                 graphnode->successors = NULL;
             } else {
-                // C frontend switch statement. The jumps haven't been read yet, so connect them when the Uclab is read
                 appendgraph();
                 if (outofmem) {
                     return;
                 }
-
                 graphtail->blockno = IONE;
                 predecessors = alloc_new(sizeof(struct GraphnodeList), &perm_heap);
                 graphtail->predecessors = predecessors;
@@ -3655,7 +3544,6 @@ void readnxtinst(void) {
                 predecessors->graphnode = curgraphnode;
             }
 
-            // default case
             graphnode = ingraph(LENGTH);
             if (graphnode == NULL) {
                 appendgraph();
@@ -3688,7 +3576,7 @@ void readnxtinst(void) {
             curlocln = 0;
             return;
 
-        // Most likely "indexed jump", for computed gotos in fortran and pl/1
+        // Most likely "indexed jump", for computed gotos in fortan and pl/1
         case Uijp:
             extendstat(Uijp);
             if (outofmem) {
@@ -3773,7 +3661,7 @@ void readnxtinst(void) {
             ustack = ustack->down;
             stattail->u.store.u.mov.offset = OFFSET;
             stattail->u.store.size = LENGTH;
-            stattail->u.store.u.mov.src_align = LEXLEV;
+            stattail->u.store.u.mov.unk32 = LEXLEV;
             stattail->u.store.u.mov.baseaddr = findbaseaddr(stattail->expr);
             passbyfp = false;
             appendstorelist();
@@ -3798,14 +3686,14 @@ void readnxtinst(void) {
             if (OPC == Uistr) {
                 for (stmt = curgraphnode->stat_head; stmt != NULL && !found; stmt = stmt->next) {
                     if (stmt->opc == Uistr && ustack->down->expr == stmt->expr &&
-                            IONE + ustack->down->value == stmt->u.store.u.istr.offset && LENGTH == stmt->u.store.size)
+                            IONE + ustack->down->value == stmt->u.store.u.istr.s.word && LENGTH == stmt->u.store.size) 
                     {
-                        if (stmt->u.store.lval_av) {
+                        if (stmt->u.store.unk1D) {
                             decreasecount(stmt->expr);
                             decreasecount(stmt->u.store.expr);
                             stmt->opc = Unop;
                             stmt->u.store.var_access_list_item->type = 0;
-                        } else if (stmt->u.store.store_av && ustack->expr == stmt->u.store.expr) {
+                        } else if (stmt->u.store.unk1F && ustack->expr == stmt->u.store.expr) {
                             decreasecount(ustack->expr);
                             ustack = ustack->down;
                             decreasecount(ustack->expr);
@@ -3825,52 +3713,52 @@ void readnxtinst(void) {
             }
 
             stattail->u.store.u.istr.dtype = DTYPE;
-            stattail->u.store.u.istr.align = LEXLEV & ~7;
-            if (stattail->u.store.u.istr.align == 0) {
-                stattail->u.store.u.istr.align = LENGTH * 8;
+            stattail->u.store.u.istr.unk2D = LEXLEV & ~7;
+            if (stattail->u.store.u.istr.unk2D == 0) {
+                stattail->u.store.u.istr.unk2D = LENGTH * 8;
             }
 
             expr = ustack->down->expr;
             if (expr->type == isconst) {
-                if (expr->data.isconst.number.intval % (unsigned)(stattail->u.store.u.istr.align / 8) != 0) {
-                    stattail->u.store.u.istr.align = 8;
+                if (expr->data.isconst.number.intval % (unsigned)(stattail->u.store.u.istr.unk2D / 8) != 0) {
+                    stattail->u.store.u.istr.unk2D = 8;
                     tmp1 = expr->data.isconst.number.intval;
                     while ((tmp1 & 1) == 0) {
-                        stattail->u.store.u.istr.align *= 2;
+                        stattail->u.store.u.istr.unk2D *= 2;
                         tmp1 /= 2;
                     }
                 }
             } else if (expr->type == islda) {
-                if (expr->data.islda_isilda.address.addr % (unsigned)(stattail->u.store.u.istr.align / 8) != 0) {
-                    stattail->u.store.u.istr.align = 8;
-                    tmp1 = expr->data.islda_isilda.address.addr;
+                if (expr->data.islda_isilda.var_data.addr % (unsigned)(stattail->u.store.u.istr.unk2D / 8) != 0) {
+                    stattail->u.store.u.istr.unk2D = 8;
+                    tmp1 = expr->data.islda_isilda.var_data.addr;
                     while ((tmp1 & 1) == 0) {
-                        stattail->u.store.u.istr.align *= 2;
+                        stattail->u.store.u.istr.unk2D *= 2;
                         tmp1 /= 2;
                     }
                 }
             }
 
-            stattail->u.store.u.istr.mtagno = (unsigned short)OFFSET;
+            stattail->u.store.u.istr.offset = (unsigned short)OFFSET;
             stattail->u.store.expr = ustack->expr;
             ustack = ustack->down;
             ustack_add_index();
             stattail->expr = ustack->expr;
-            stattail->u.store.u.istr.offset = IONE + ustack->value;
+            stattail->u.store.u.istr.s.word = IONE + ustack->value;
             stattail->u.store.size = LENGTH;
             ustack = ustack->down;
             stattail->u.store.baseaddr = findbaseaddr(stattail->expr);
 
             if (OPC == Uistr) {
-                stattail->u.store.lval_ant = !strlkilled(stattail, curgraphnode->varlisthead);
-                stattail->u.store.lval_av = true;
-                stattail->u.store.store_ant = !strskilled(stattail, curgraphnode->varlisthead);
-                stattail->u.store.store_av = true;
+                stattail->u.store.unk1C = !strlkilled(stattail, curgraphnode->varlisthead);
+                stattail->u.store.unk1D = true;
+                stattail->u.store.unk1E = !strskilled(stattail, curgraphnode->varlisthead);
+                stattail->u.store.unk1F = true;
             } else {
-                stattail->u.store.lval_ant = false;
-                stattail->u.store.lval_av = false;
-                stattail->u.store.store_ant = false;
-                stattail->u.store.store_av = false;
+                stattail->u.store.unk1C = false;
+                stattail->u.store.unk1D = false;
+                stattail->u.store.unk1E = false;
+                stattail->u.store.unk1F = false;
             }
             strkillprev(stattail);
             appendstorelist();
@@ -3894,51 +3782,51 @@ void readnxtinst(void) {
             }
 
             stattail->u.store.u.istr.dtype = DTYPE;
-            stattail->u.store.u.istr.align = LEXLEV & ~7;
-            if (stattail->u.store.u.istr.align == 0) {
-                stattail->u.store.u.istr.align = (unsigned char)(LENGTH * 8);
+            stattail->u.store.u.istr.unk2D = LEXLEV & ~7;
+            if (stattail->u.store.u.istr.unk2D == 0) {
+                stattail->u.store.u.istr.unk2D = (unsigned char)(LENGTH * 8);
             }
 
             expr = ustack->down->expr;
             if (expr->type == isconst) {
-                if (expr->data.isconst.number.intval % (stattail->u.store.u.istr.align / 8) != 0) {
-                    stattail->u.store.u.istr.align = 8;
+                if (expr->data.isconst.number.intval % (stattail->u.store.u.istr.unk2D / 8) != 0) {
+                    stattail->u.store.u.istr.unk2D = 8;
                     tmp1 = expr->data.isconst.number.intval;
                     while ((tmp1 & 1) == 0) {
-                        stattail->u.store.u.istr.align *= 2;
+                        stattail->u.store.u.istr.unk2D *= 2;
                         tmp1 /= 2;
                     }
                 }
             } else if (expr->type == islda) {
-                if (expr->data.islda_isilda.address.addr % (stattail->u.store.u.istr.align / 8) != 0) {
-                    stattail->u.store.u.istr.align = 8;
-                    tmp1 = expr->data.islda_isilda.address.addr;
+                if (expr->data.islda_isilda.var_data.addr % (stattail->u.store.u.istr.unk2D / 8) != 0) {
+                    stattail->u.store.u.istr.unk2D = 8;
+                    tmp1 = expr->data.islda_isilda.var_data.addr;
                     while ((tmp1 & 1) == 0) {
-                        stattail->u.store.u.istr.align *= 2;
+                        stattail->u.store.u.istr.unk2D *= 2;
                         tmp1 /= 2;
                     }
                 }
             }
 
-            stattail->u.store.u.istr.mtagno = OFFSET;
+            stattail->u.store.u.istr.offset = OFFSET;
             stattail->u.store.expr = ustack->expr;
             ustack = ustack->down;
             ustack_add_value();
             stattail->expr = ustack->expr;
-            stattail->u.store.u.istr.offset = IONE;
+            stattail->u.store.u.istr.s.word = IONE;
             stattail->u.store.size = LENGTH;
             ustack = ustack->down;
             stattail->u.store.baseaddr = findbaseaddr(stattail->expr);
             if (OPC == Uirst) {
-                stattail->u.store.lval_ant = !strlkilled(stattail, curgraphnode->varlisthead);
-                stattail->u.store.lval_av = true;
-                stattail->u.store.store_ant = !strskilled(stattail, curgraphnode->varlisthead);
-                stattail->u.store.store_av = true;
+                stattail->u.store.unk1C = !strlkilled(stattail, curgraphnode->varlisthead);
+                stattail->u.store.unk1D = true;
+                stattail->u.store.unk1E = !strskilled(stattail, curgraphnode->varlisthead);
+                stattail->u.store.unk1F = true;
             } else {
-                stattail->u.store.lval_ant = false;
-                stattail->u.store.lval_av = false;
-                stattail->u.store.store_ant = false;
-                stattail->u.store.store_av = false;
+                stattail->u.store.unk1C = false;
+                stattail->u.store.unk1D = false;
+                stattail->u.store.unk1E = false;
+                stattail->u.store.unk1F = false;
             }
             strkillprev(stattail);
             appendstorelist();
@@ -3963,9 +3851,9 @@ void readnxtinst(void) {
                 stattail->opc = Unop;
                 return;
             }
-            stattail->u.store.u.mov.dst_align = LEXLEV & ~7;
+            stattail->u.store.u.mov.unk33 = LEXLEV & ~7;
             stattail->u.store.size = LENGTH;
-            stattail->u.store.u.mov.src_align = IONE;
+            stattail->u.store.u.mov.unk32 = IONE;
             stattail->u.store.u.mov.baseaddr = findbaseaddr(stattail->u.store.expr);
             appendstorelist();
             if (outofmem) {
@@ -3975,15 +3863,15 @@ void readnxtinst(void) {
             movkillprev(stattail);
             stattail->u.store.baseaddr = findbaseaddr(stattail->expr);
             if (OPC == Umov) {
-                stattail->u.store.lval_ant = !strlkilled(stattail, curgraphnode->varlisthead);
-                stattail->u.store.store_ant = !strlkilled(stattail, curgraphnode->varlisthead); // not strskilled?
-                stattail->u.store.lval_av = true;
-                stattail->u.store.store_av = true;
+                stattail->u.store.unk1C = !strlkilled(stattail, curgraphnode->varlisthead);
+                stattail->u.store.unk1E = !strlkilled(stattail, curgraphnode->varlisthead);
+                stattail->u.store.unk1D = true;
+                stattail->u.store.unk1F = true;
             } else {
-                stattail->u.store.lval_ant = false;
-                stattail->u.store.lval_av = false;
-                stattail->u.store.store_ant = false;
-                stattail->u.store.store_av = false;
+                stattail->u.store.unk1C = false;
+                stattail->u.store.unk1D = false;
+                stattail->u.store.unk1E = false;
+                stattail->u.store.unk1F = false;
             }
             strkillprev(stattail);
             appendstorelist();
@@ -4337,7 +4225,7 @@ void readnxtinst(void) {
                 return;
             }
 
-            graphtail->interprocedural_controlflow = true;
+            graphtail->unk4 = true;
             if (curgraphnode != NULL) {
                 dbgerror(0x198);
             }
@@ -4367,6 +4255,7 @@ void readnxtinst(void) {
         case Ucubd: // XXX: untested
         case Ustep: // XXX: untested
             extendstat(OPC);
+            stattail = stattail;
             stattail->u.clbd_cubd_step.dtype = DTYPE;
             stattail->u.clbd_cubd_step.unk18 = IONE;
             return;

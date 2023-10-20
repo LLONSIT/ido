@@ -6,6 +6,8 @@
 
 int __Argc;
 char **__Argv;
+unsigned char debug_ugen = 1;
+
 
 double _atod(const char *str) {
     return atof(str);
@@ -14,7 +16,6 @@ double _atod(const char *str) {
 int main1(int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
-    puts("main");
     __Argc = argc;
     __Argv = argv;
     output.c_file = stdout;

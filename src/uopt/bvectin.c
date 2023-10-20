@@ -7,19 +7,19 @@
 00410204 codemotion
 004122D8 vardelete
 00413000 exprdelete
-00414108 insert_copied_expr
+00414108 func_00414108
 004175BC copypropagate
 0041C914 printregs
 00426FA4 func_00426FA4
 00428DD8 func_00428DD8
 0042AADC func_0042AADC
-00430680 find_recurring_mem_accesses
-00430BF4 no_var_mults
-00430D74 check_mpy_cand
-00430FF4 setcand
-004310EC check_addsub_cand
-00431268 ilod_aliased
-00431508 candidate
+00430680 func_00430680
+00430BF4 func_00430BF4
+00430D74 func_00430D74
+00430FF4 func_00430FF4
+004310EC func_004310EC
+00431268 func_00431268
+00431508 func_00431508
 004324F4 findinduct
 00447F90 check_loop_coincidence
 0044821C expr_has_direct_usage
@@ -77,8 +77,8 @@ int bvectin(int bitpos, struct BitVector *bv) {
 
 /*
 004123C4 varinsert
-00414108 insert_copied_expr
-0041550C find_replacements
+00414108 func_00414108
+0041550C func_0041550C
 00454514 func_00454514
 00454D08 func_00454D08
 00455060 func_00455060

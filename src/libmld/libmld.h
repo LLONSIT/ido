@@ -1,16 +1,10 @@
 #ifndef LIBMLD_H
 #define LIBMLD_H
-#include "syms.h"
-#include "stext.h"
-#include "sex.h"
 
 extern char *st_errname;
-extern CHDRR *st_pchdr;
-extern CFDR* pcfdcur;
 
-void st_error(const char *format, ...);
-void st_warning(const char *format, ...);
-void st_internal(const char *format, ...);
-int ldfsymorder(pHDRR hdr, int offset);
+// stio.c
+int st_readbinary(const char filename[128], char how);
+int st_writebinary(const char filename[128], int flags);
 
 #endif

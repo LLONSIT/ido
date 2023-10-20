@@ -10,8 +10,8 @@
 #include "uoptmtag.h"
 
 /*
-004150E4 add_cvtl
-0041550C find_replacements
+004150E4 func_004150E4
+0041550C func_0041550C
 004175BC copypropagate
 00445E44 exprimage
 0046BA10 change_to_const_eq
@@ -24,43 +24,43 @@ int isconstihash(int value) {
 }
 
 /*
-0041550C find_replacements
+0041550C func_0041550C
 00445E44 exprimage
 */
 int realihash(union Constant value) {
-    // only the u16 at value+0x2 is used, but 8 bytes are always passed to this function, see find_replacements asm
+    // only the u16 at value+0x2 is used, but 8 bytes are always passed to this function, see func_0041550C asm
     int hash = ((value.real.len * value.real.len) << 6) % 0x653;
     if (hash < 0) hash += 0x653;
     return hash;
 }
 
 /*
-0041550C find_replacements
+0041550C func_0041550C
 004175BC copypropagate
 0042020C gen_static_link
 00445E44 exprimage
 004471AC codeimage
 */
-int isvarihash(struct VariableLocation loc) {
-    int hash = (((loc.memtype << 6) + loc.blockno + loc.addr) << 4) % 0x653;
+int isvarihash(struct VariableInner var) {
+    int hash = (((var.memtype << 6) + var.blockno + var.addr) << 4) % 0x653;
     if (hash < 0) hash += 0x653;
     return hash;
 }
 
 /*
-0041550C find_replacements
+0041550C func_0041550C
 00445E44 exprimage
 0046BA10 change_to_const_eq
 */
-int isldaihash(struct VariableLocation loc, unsigned int addr) {
-    int hash = (((loc.memtype << 6) + loc.blockno + addr) << 4) % 0x653;
+int isldaihash(struct VariableInner var, unsigned int addr) {
+    int hash = (((var.memtype << 6) + var.blockno + addr) << 4) % 0x653;
     if (hash < 0) hash += 0x653;
     return hash;
 }
 
 /*
 00410204 codemotion
-0041550C find_replacements
+0041550C func_0041550C
 004175BC copypropagate
 00445E44 exprimage
 004471AC codeimage
@@ -81,8 +81,8 @@ int isopihash(Uopcode opc, struct IChain *op1, struct IChain *op2) {
 }
 
 /*
-004150E4 add_cvtl
-0041550C find_replacements
+004150E4 func_004150E4
+0041550C func_0041550C
 00445AEC trep_image
 00445E44 exprimage
 */
@@ -136,8 +136,8 @@ struct IChain *appendichain(unsigned short table_index, bool not_isop) {
 }
 
 /*
-004150E4 add_cvtl
-0041550C find_replacements
+004150E4 func_004150E4
+0041550C func_0041550C
 004175BC copypropagate
 00445E44 exprimage
 004471AC codeimage
@@ -199,31 +199,31 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
                 break;
 
             case islda:
-                if (ichain->type == islda && ichain->islda_isilda.offset == expr->data.islda_isilda.offset &&
-                        ichain->islda_isilda.address.blockno == expr->data.islda_isilda.address.blockno) {
+                if (ichain->type == islda && ichain->islda_isilda.addr == expr->data.islda_isilda.addr &&
+                        ichain->islda_isilda.var_data.blockno == expr->data.islda_isilda.var_data.blockno) {
                     found = true;
                 }
                 break;
 
             case isilda:
                 if (ichain->type == isilda &&
-                        ichain->islda_isilda.offset == expr->data.islda_isilda.offset &&
+                        ichain->islda_isilda.addr == expr->data.islda_isilda.addr &&
                         ichain->islda_isilda.size == expr->data.islda_isilda.size &&
-                        addreq(ichain->islda_isilda.address, expr->data.islda_isilda.address)) {
+                        addreq(ichain->islda_isilda.var_data, expr->data.islda_isilda.var_data)) {
                     found = true;
                 }
                 break;
 
             case isvar:
                 if (ichain->type == isvar &&
-                        addreq(ichain->isvar_issvar.location, expr->data.isvar_issvar.location)) {
+                        addreq(ichain->isvar_issvar.var_data, expr->data.isvar_issvar.var_data)) {
                     found = true;
                 }
                 break;
 
             case issvar:
                 if (ichain->type == issvar &&
-                        addreq(ichain->isvar_issvar.location, expr->data.isvar_issvar.location)) {
+                        addreq(ichain->isvar_issvar.var_data, expr->data.isvar_issvar.var_data)) {
                     found = true;
                 }
                 break;
@@ -241,7 +241,7 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
                     case Umpy:
                     case Uuni:
                     case Uxor:
-                        if (ichain->dtype == expr->datatype &&
+                        if (ichain->dtype == expr->datatype && 
                                 ((ichain->isop.op1 == op1 && ichain->isop.op2 == op2) ||
                                  (ichain->isop.op1 == op2 && ichain->isop.op2 == op1))) {
                             if (ichain->isop.overflow_attr == expr->data.isop.aux2.v1.overflow_attr) {
@@ -253,7 +253,7 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
                     // Commutative ops
                     case Uequ:
                     case Uneq:
-                        if (ichain->dtype == expr->datatype &&
+                        if (ichain->dtype == expr->datatype && 
                                 ((ichain->isop.op1 == op1 && ichain->isop.op2 == op2) ||
                                  (ichain->isop.op1 == op2 && ichain->isop.op2 == op1))) {
                             found = true;
@@ -273,7 +273,7 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
                     case Ushl:
                     case Ushr:
                     case Usign:
-                        if (ichain->dtype == expr->datatype &&
+                        if (ichain->dtype == expr->datatype && 
                                 (ichain->isop.op1 == op1 && ichain->isop.op2 == op2)) {
                             if (ichain->isop.overflow_attr == expr->data.isop.aux2.v1.overflow_attr) {
                                 found = true;
@@ -286,22 +286,23 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
                     case Ugrt:
                     case Uleq:
                     case Ules:
-                        if (ichain->dtype == expr->datatype &&
+                        if (ichain->dtype == expr->datatype && 
                                 ichain->isop.op1 == op1 && ichain->isop.op2 == op2) {
                             found = true;
                         }
                         break;
 
                     case Uinn:
-                        if (ichain->dtype == expr->datatype &&
+                        if (ichain->dtype == expr->datatype && 
                                 ichain->isop.op1 == op1 && ichain->isop.op2 == op2 &&
-                                ichain->isop.unk24_u16 == expr->data.isop.aux2.v1.unk3C) {
+                                ichain->isop.s.bit == expr->data.isop.aux2.v1.unk3C) {
                             found = true;
                         }
+                        
                         break;
 
                     case Uixa:
-                        if (ichain->dtype == expr->datatype &&
+                        if (ichain->dtype == expr->datatype && 
                                 ichain->isop.size == expr->data.isop.datasize &&
                                 (ichain->isop.op1 == op1 && ichain->isop.op2 == op2)) {
                             found = true;
@@ -350,7 +351,7 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
 
                     case Uadj:
                         if (ichain->isop.size == expr->data.isop.datasize &&
-                                ichain->isop.unk24_u16 == expr->data.isop.aux2.v1.unk3C &&
+                                ichain->isop.s.bit == expr->data.isop.aux2.v1.unk3C &&
                                 ichain->isop.op1 == op1) {
                             found = true;
                         }
@@ -362,14 +363,14 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
                         }
                         break;
 
+                    case Uildv:
                     case Uilod:
                     case Uirld:
-                    case Uildv:
                     case Uirlv:
                         if (ichain->dtype == expr->datatype &&
                                 ichain->isop.op1 == op1 &&
                                 ichain->isop.size == expr->data.isop.datasize &&
-                                ichain->isop.unk24_u16 == expr->data.isop.aux2.v1.unk3C) {
+                                ichain->isop.s.bit == expr->data.isop.aux2.v1.unk3C) {
                             found = true;
                         }
                         break;
@@ -415,15 +416,12 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
 
     if (found == false) {
         ichain = appendichain(hash, expr->type != isop);
-
         if (ichain == NULL) {
             outofmem = true;
             return ichain; // used to return sp3C
         }
-
         ichain->type = expr->type;
         ichain->dtype = expr->datatype;
-
         switch (expr->type) {
             case dumped:
                 write_string(err.c_file, "Warning: kind dumped: ignored", 29, 29);
@@ -436,44 +434,43 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
                 break;
 
             case isrconst:
-                ichain->isrconst.unk10 = expr->data.isrconst.value;
-                ichain->isrconst.unk14 = expr->data.isrconst.unk24;
+                ichain->isconst.number = expr->data.isconst.number;
                 break;
 
             case islda:
-                ichain->islda_isilda.offset = expr->data.islda_isilda.offset;
-                ichain->islda_isilda.address = expr->data.islda_isilda.address;
+                ichain->islda_isilda.addr = expr->data.islda_isilda.addr;
+                ichain->islda_isilda.var_data = expr->data.islda_isilda.var_data;
                 ichain->islda_isilda.size = expr->data.islda_isilda.size;
                 break;
 
             case isilda:
-                ichain->islda_isilda.offset = expr->data.islda_isilda.offset;
-                ichain->islda_isilda.address = expr->data.islda_isilda.address;
+                ichain->islda_isilda.addr = expr->data.islda_isilda.addr;
+                ichain->islda_isilda.var_data = expr->data.islda_isilda.var_data;
                 ichain->islda_isilda.size = expr->data.islda_isilda.size;
 
-                ichain->islda_isilda.outer_stack_ichain = expr->data.islda_isilda.outer_stack->ichain;
+                ichain->islda_isilda.ichain = expr->data.islda_isilda.unk34->ichain;
                 break;
 
             case isvar:
-                ichain->isvar_issvar.location = expr->data.isvar_issvar.location;
+                ichain->isvar_issvar.var_data = expr->data.isvar_issvar.var_data;
                 ichain->isvar_issvar.size = expr->data.isvar_issvar.size;
 
                 // The two bools' order is swapped!
-                ichain->isvar_issvar.vreg = expr->data.isvar_issvar.vreg;
-                ichain->isvar_issvar.veqv = expr->data.isvar_issvar.veqv;
+                ichain->isvar_issvar.unk19 = expr->data.isvar_issvar.unk22;
+                ichain->isvar_issvar.unk1A = expr->data.isvar_issvar.unk21;
                 ichain->expr = expr;
                 break;
 
             case issvar:
-                ichain->isvar_issvar.location = expr->data.isvar_issvar.location;
+                ichain->isvar_issvar.var_data = expr->data.isvar_issvar.var_data;
                 ichain->isvar_issvar.size = expr->data.isvar_issvar.size;
 
                 // The two bools' order is swapped!
-                ichain->isvar_issvar.vreg = expr->data.isvar_issvar.vreg;
-                ichain->isvar_issvar.veqv = expr->data.isvar_issvar.veqv;
-                ichain->expr = expr;
+                ichain->isvar_issvar.unk19 = expr->data.isvar_issvar.unk22;
+                ichain->isvar_issvar.unk1A = expr->data.isvar_issvar.unk21;
 
-                ichain->isvar_issvar.outer_stack_ichain = expr->data.isvar_issvar.outer_stack->ichain;
+                ichain->expr = expr;
+                ichain->isvar_issvar.ichain = expr->data.isvar_issvar.unk24->ichain;
                 break;
 
             case isop:
@@ -510,7 +507,7 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
 
                     case Uinn:
                         ichain->isop.size = expr->data.isop.datasize;
-                        ichain->isop.unk24_u16 = expr->data.isop.aux2.v1.unk3C;
+                        ichain->isop.s.bit = expr->data.isop.aux2.v1.unk3C;
                         break;
 
                     case Uixa:
@@ -533,28 +530,28 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
 
                     case Uadj:
                         ichain->isop.size = expr->data.isop.datasize;
-                        ichain->isop.unk24_u16 = expr->data.isop.aux2.v1.unk3C;
+                        ichain->isop.s.bit = expr->data.isop.aux2.v1.unk3C;
                         break;
 
+                    case Uildv:
                     case Uilod:
                     case Uirld:
-                    case Uildv:
                     case Uirlv:
-                        ichain->isop.size = expr->data.isop.datasize; //! this is actually an offset from baseaddr
-                        ichain->isop.unk24_u16 = expr->data.isop.aux2.v1.unk3C;
-                        ichain->isop.unk13 = expr->data.isop.aux2.v1.align;
+                        ichain->isop.size = expr->data.isop.datasize;
+                        ichain->isop.s.bit = expr->data.isop.aux2.v1.unk3C;
+                        ichain->isop.unk13 = expr->data.isop.aux2.v1.unk3F;
                         ichain->expr = expr;
 
                         // what is this... and why is the order swapped?
                         // asm used lw then sh, not lhu
-                        ichain->isop.s.mtagno = expr->data.isop.aux.mtagno;
+                        ichain->isop.s.unk2 = expr->data.isop.aux.unk38_int;
                         break;
 
                     case Uiequ:
                     case Uineq:
                         ichain->isop.size = expr->data.isop.datasize;
                         ichain->expr = expr;
-                        ichain->isop.unk24_u16 = expr->data.isop.aux2.v1.unk3C;
+                        ichain->isop.s.bit = expr->data.isop.aux2.v1.unk3C;
                         break;
 
                     case Uigeq:
@@ -563,7 +560,7 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
                     case Uiles:
                         ichain->isop.size = expr->data.isop.datasize;
                         ichain->expr = expr;
-                        ichain->isop.unk24_u16 = expr->data.isop.aux2.v1.unk3C;
+                        ichain->isop.s.bit = expr->data.isop.aux2.v1.unk3C;
                         break;
 
                     // Ignored ops
@@ -632,12 +629,15 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
                 // non floating-point multiplies
                 if (expr->data.isop.opc == Umpy &&
                         expr->datatype != Qdt && expr->datatype != Rdt) {
-                    if (ichain->isop.op1->type != isconst || ichain->isop.op2->type != isconst) {
+
+                    if (ichain->isop.op1->type != isconst ||
+                            ichain->isop.op2->type != isconst) {
+
                         if ((ichain->isop.op1->type == isconst ||
                              ichain->isop.op1->type == isvar   ||
                              ichain->isop.op1->type == issvar)
                              || // bug from short-circuit eval?
-                                // if op1 is var,svar, op2 can be any type. The only other type it could be is lda though, which is impossible...
+                                // if op1 is const,var,svar, op2 can be any type
                             (ichain->isop.op2->type == isconst ||
                              ichain->isop.op2->type == isvar   ||
                              ichain->isop.op2->type == issvar)) {
@@ -671,15 +671,17 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
                 }
             }
         }
-    } else if (expr->type == islda) {
-        int expr_varlen = expr->data.islda_isilda.address.addr + expr->data.islda_isilda.size;
+    } else {
+        if (expr->type == islda) {
+            int expr_varlen = expr->data.islda_isilda.var_data.addr + expr->data.islda_isilda.size;
 
-        if ((ichain->islda_isilda.address.addr + ichain->isvar_issvar.size) < expr_varlen) {
-            ichain->islda_isilda.size = (expr_varlen - ichain->islda_isilda.address.addr);
-        }
+            if ((ichain->islda_isilda.var_data.addr + ichain->isvar_issvar.size) < expr_varlen) {
+                ichain->islda_isilda.size = (expr_varlen - ichain->islda_isilda.var_data.addr);
+            }
 
-        if (expr->data.islda_isilda.address.addr < ichain->islda_isilda.address.addr) {
-            ichain->islda_isilda.address.addr = expr->data.islda_isilda.address.addr;
+            if (expr->data.islda_isilda.var_data.addr < ichain->islda_isilda.var_data.addr) {
+                ichain->islda_isilda.var_data.addr = expr->data.islda_isilda.var_data.addr;
+            }
         }
     }
 
@@ -687,16 +689,17 @@ struct IChain *isearchloop(unsigned short hash, struct Expression *expr, struct 
     return ichain;
 }
 
-/*
-0041550C find_replacements
+/* 
+0041550C func_0041550C
 00445E44 exprimage
 0046BD90 change_to_var_eq
 */
 void trep_image(struct Expression *expr, bool op1, bool ant, bool av, bool arg4) {
     unsigned short cg1hash; // sp3C
     struct IChain *ichain; // sp38, sp24
-    struct TrepImageThing *trep;    // sp30
+    struct TrepImageThing *trepThing;    // sp30
     struct Expression *op; // a3, sp2C
+    struct Expression *next;
     bool found;
 
     if (op1) {
@@ -705,19 +708,24 @@ void trep_image(struct Expression *expr, bool op1, bool ant, bool av, bool arg4)
         op = expr->data.isop.op2;
     }
 
-    while ((op->type == isvar || op->type == issvar) &&
-           (op->data.isvar_issvar.copy != NULL && op->data.isvar_issvar.copy != nocopy)) {
-        op = op->data.isvar_issvar.copy;
+    if (op->type == isvar || op->type == issvar) {
+        next = op->data.isvar_issvar.unk30;
+        while (next != NULL && next != nocopy) {
+            op = next;
+
+            if (next->type == isvar || next->type == issvar) {
+                next = next->data.isvar_issvar.unk30;
+            } else {
+                break;
+            }
+        }
     }
 
-    trep = alloc_new(sizeof (struct TrepImageThing), &perm_heap);
-#ifdef AVOID_UB
-    *trep = (struct TrepImageThing){0};
-#endif
+    trepThing = alloc_new(sizeof (struct TrepImageThing), &perm_heap);
     if (op->type == islda || op->type == isilda || op->type == isconst) {
-        trep->ichain = NULL;
+        trepThing->ichain = NULL;
     } else if (op->type != isvar && op->count != 1) {
-        trep->ichain = NULL;
+        trepThing->ichain = NULL;
     } else {
         cg1hash = opvalihash(Ucg1, op->ichain, expr->graphnode->num);
         ichain = itable[cg1hash];
@@ -732,7 +740,7 @@ void trep_image(struct Expression *expr, bool op1, bool ant, bool av, bool arg4)
         }
 
         if (found && !arg4) {
-            trep->ichain = NULL;
+            trepThing->ichain = NULL;
         } else {
             if (!found) {
                 ichain = appendichain(cg1hash, false);
@@ -748,7 +756,7 @@ void trep_image(struct Expression *expr, bool op1, bool ant, bool av, bool arg4)
                 setbit(&trepexp, ichain->bitpos);
             }
 
-            trep->ichain = ichain;
+            trepThing->ichain = ichain;
             setbit(&expr->graphnode->bvs.stage1.u.precm.expoccur, ichain->bitpos);
             if (ant) {
                 setbit(&expr->graphnode->bvs.stage1.antlocs, ichain->bitpos);
@@ -763,9 +771,9 @@ void trep_image(struct Expression *expr, bool op1, bool ant, bool av, bool arg4)
     }
 
     if (op1) {
-        expr->data.isop.aux.unk38_trep = trep;
+        expr->data.isop.aux.unk38_trep = trepThing;
     } else {
-        expr->data.isop.aux2.unk3C_trep = trep;
+        expr->data.isop.aux2.unk3C_trep = trepThing;
     }
 }
 
@@ -794,11 +802,11 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
             *anticipated = true;
             *available = true;
         } else if (expr->type == isvar || expr->type == issvar) {
-            *anticipated = expr->initialVal;
-            *available = !expr->killed;
+            *anticipated = expr->unk3;
+            *available = !expr->unk2;
         } else {    // empty, isop, dumped, isrconst
-            *anticipated = expr->data.isop.anticipated;
-            *available = expr->data.isop.available;
+            *anticipated = expr->data.isop.unk21;
+            *available = expr->data.isop.unk22;
         }
     } else {
         switch (expr->type) {
@@ -821,6 +829,7 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
 
                     default:    // Cdt, Mdt, Pdt, Qdt, Rdt, Sdt, Wdt, Xdt, Zdt
                         hash = realihash(expr->data.isconst.number);
+                        //hash = realihash(expr->data.islda_isilda.addr, expr->data.islda_isilda.size);
                         break;
                 }
                 ichain = isearchloop(hash, expr, NULL, NULL);
@@ -835,22 +844,22 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
                 break;
 
             case islda:
-                ichain = isearchloop(isldaihash(expr->data.islda_isilda.address, expr->data.islda_isilda.offset), expr, NULL, NULL);
+                ichain = isearchloop(isldaihash(expr->data.islda_isilda.var_data, expr->data.islda_isilda.addr), expr, NULL, NULL);
                 *anticipated = true;
                 *available = true;
                 break;
 
             case isilda:
-                exprimage(expr->data.islda_isilda.outer_stack, anticipated, available);
-                ichain = isearchloop(isvarihash(expr->data.islda_isilda.address), expr, NULL, NULL);
+                exprimage(expr->data.islda_isilda.unk34, anticipated, available);
+                ichain = isearchloop(isvarihash(expr->data.islda_isilda.var_data), expr, NULL, NULL);
                 if (outofmem) return NULL; // used to return UB sp8C
 
-                if (expr->data.islda_isilda.outer_stack->type != issvar) {
+                if (expr->data.islda_isilda.unk34->type != issvar) {
                     *anticipated = true;
                     *available = true;
                 } else {
-                    *anticipated = expr->data.islda_isilda.outer_stack->initialVal;
-                    *available = !expr->data.islda_isilda.outer_stack->killed;
+                    *anticipated = expr->data.islda_isilda.unk34->unk3;
+                    *available = !expr->data.islda_isilda.unk34->unk2;
                 }
 
                 setbit(&curgraphnode->bvs.stage1.u.precm.expoccur, ichain->bitpos);
@@ -866,22 +875,23 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
                 break;
 
             case isvar:
-                ichain = isearchloop(isvarihash(expr->data.isvar_issvar.location), expr, NULL, NULL);
+                ichain = isearchloop(isvarihash(expr->data.isvar_issvar.var_data), expr, NULL, NULL);
                 if (outofmem) return NULL; // used to return UB sp8C
 
-                if (expr->data.isvar_issvar.location.memtype == Rmt) {
-                    if (expr->data.isvar_issvar.location.addr != r_sp) {
-                        switch (expr->data.isvar_issvar.location.addr) {
+                // Most iffy part... compiler originally added 1 to r2bb and subtracted 4/8 from r2bitpos/setofr2bbs.
+                if (expr->data.isvar_issvar.var_data.memtype == Rmt) {
+                    if (expr->data.isvar_issvar.var_data.addr != r_sp) {
+                        switch (expr->data.isvar_issvar.var_data.addr) {
                             case r_v0:
-                                r2bb = 1;
+                                r2bb = 0;
                                 break;
 
                             case r_f0:
-                                r2bb = 2;
+                                r2bb = 1;
                                 break;
 
                             case r_f2:
-                                r2bb = 3;
+                                r2bb = 2;
                                 break;
 
                             case r_f1:
@@ -890,35 +900,35 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
                                 break;
 
                         }
-                        r2bitpos[r2bb - 1] = ichain->bitpos;
+                        r2bitpos[r2bb] = ichain->bitpos;
 
-                        if (curgraphnode->num >= (setofr2bbs[r2bb - 1].num_blocks << 7)) {
+                        if (curgraphnode->num >= (setofr2bbs[r2bb].num_blocks << 7)) {
                             newblocks = ((unsigned) curstaticno >> 7) + 1;
-                            setofr2bbs[r2bb - 1].blocks = alloc_realloc(setofr2bbs[r2bb - 1].blocks, setofr2bbs[r2bb - 1].num_blocks, newblocks, &perm_heap);
+                            setofr2bbs[r2bb].blocks = alloc_realloc(setofr2bbs[r2bb].blocks, setofr2bbs[r2bb].num_blocks, newblocks, &perm_heap);
 
-                            memset(setofr2bbs[r2bb - 1].blocks + setofr2bbs[r2bb - 1].num_blocks, 0, (newblocks - setofr2bbs[r2bb - 1].num_blocks) * sizeof(struct BitVectorBlock));
-                            setofr2bbs[r2bb - 1].num_blocks = newblocks;
+                            memset(setofr2bbs[r2bb].blocks + setofr2bbs[r2bb].num_blocks, 0, (newblocks - setofr2bbs[r2bb].num_blocks) * sizeof(struct BitVectorBlock));
+                            setofr2bbs[r2bb].num_blocks = newblocks;
                         }
-                        setbitbb(&setofr2bbs[r2bb - 1], curgraphnode->num);
+                        setbitbb(&setofr2bbs[r2bb], curgraphnode->num);
                         // Original:
                         //unsigned int blockpos = curgraphnode->num & 0x7F;
-                        //setofr2bbs[r2bb - 1].blocks[curgraphnode->num >> 7].words[0] |= (blockpos < 0x20U) << ((~blockpos) & 0x1f);
-                        //setofr2bbs[r2bb - 1].blocks[curgraphnode->num >> 7].words[1] |= ((unsigned) (blockpos - 0x20) < 0x20U) << ((~blockpos) & 0x1f);
-                        //setofr2bbs[r2bb - 1].blocks[curgraphnode->num >> 7].words[2] |= ((unsigned) (blockpos - 0x40) < 0x20U) << ((~blockpos) & 0x1f);
-                        //setofr2bbs[r2bb - 1].blocks[curgraphnode->num >> 7].words[3] |= ((unsigned) (blockpos - 0x60) < 0x20U) << ((~blockpos) & 0x1f);
+                        //setofr2bbs[r2bb].blocks[curgraphnode->num >> 7].words[0] |= (blockpos < 0x20U) << ((~blockpos) & 0x1f);
+                        //setofr2bbs[r2bb].blocks[curgraphnode->num >> 7].words[1] |= ((unsigned) (blockpos - 0x20) < 0x20U) << ((~blockpos) & 0x1f);
+                        //setofr2bbs[r2bb].blocks[curgraphnode->num >> 7].words[2] |= ((unsigned) (blockpos - 0x40) < 0x20U) << ((~blockpos) & 0x1f);
+                        //setofr2bbs[r2bb].blocks[curgraphnode->num >> 7].words[3] |= ((unsigned) (blockpos - 0x60) < 0x20U) << ((~blockpos) & 0x1f);
                     }
                 }
                 setbit(&curgraphnode->bvs.stage1.u.precm.expoccur, ichain->bitpos);
-                setbit(&curgraphnode->bvs.stage1.u.precm.expoccur, ichain->isvar_issvar.assignbit);
-                setbit(&curgraphnode->bvs.stage1.alters, ichain->isvar_issvar.assignbit);
-                if (expr->data.isvar_issvar.veqv) {
+                setbit(&curgraphnode->bvs.stage1.u.precm.expoccur, ichain->isop.s.bit);
+                setbit(&curgraphnode->bvs.stage1.alters, ichain->isop.s.bit);
+                if (expr->data.isvar_issvar.unk21) {
                     *anticipated = false;
                     *available = false;
                     setbit(&vareqv, ichain->bitpos);
-                    setbit(&asgneqv, ichain->isvar_issvar.assignbit);
+                    setbit(&asgneqv, ichain->isop.s.bit);
                 } else {
-                    *anticipated = expr->initialVal;
-                    *available = !expr->killed;
+                    *anticipated = expr->unk3;
+                    *available = !expr->unk2;
                 }
 
                 if (*anticipated) {
@@ -933,23 +943,23 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
                 break;
 
             case issvar:
-                exprimage(expr->data.isvar_issvar.outer_stack, anticipated, available);
+                exprimage(expr->data.isvar_issvar.unk24, anticipated, available);
                 if (outofmem) return NULL; // used to return UB sp8C
 
-                ichain = isearchloop(isvarihash(expr->data.isvar_issvar.location), expr, NULL, NULL);
+                ichain = isearchloop(isvarihash(expr->data.isvar_issvar.var_data), expr, NULL, NULL);
                 if (outofmem) return NULL; // used to return UB sp8C
 
                 setbit(&curgraphnode->bvs.stage1.u.precm.expoccur, ichain->bitpos);
-                setbit(&curgraphnode->bvs.stage1.u.precm.expoccur, ichain->isvar_issvar.assignbit);
-                setbit(&curgraphnode->bvs.stage1.alters, ichain->isvar_issvar.assignbit);
-                if (expr->data.isvar_issvar.veqv) {
+                setbit(&curgraphnode->bvs.stage1.u.precm.expoccur, ichain->isop.s.bit);
+                setbit(&curgraphnode->bvs.stage1.alters, ichain->isop.s.bit);
+                if (expr->data.isvar_issvar.unk21) {
                     *anticipated = false;
                     *available = false;
                     setbit(&vareqv, ichain->bitpos);
-                    setbit(&asgneqv, ichain->isvar_issvar.assignbit);
+                    setbit(&asgneqv, ichain->isop.s.bit);
                 } else {
-                    *anticipated = expr->initialVal;
-                    *available = !expr->killed;
+                    *anticipated = expr->unk3;
+                    *available = !expr->unk2;
                 }
 
                 if (*anticipated) {
@@ -970,12 +980,12 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
                 if (op1_ichain->type == isop) {
                     switch (op1_ichain->isop.opc) {
                         case Uequ:
-                        case Uneq:
                         case Ugeq:
                         case Ugrt:
                         case Uinn:
                         case Uleq:
                         case Ules:
+                        case Uneq:
                             resetbit(&boolexp, op1_ichain->bitpos);
                             break;
 
@@ -991,12 +1001,12 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
                     if (op2_ichain->type == isop) {
                         switch (op2_ichain->isop.opc) {
                             case Uequ:
-                            case Uneq:
                             case Ugeq:
                             case Ugrt:
                             case Uinn:
                             case Uleq:
                             case Ules:
+                            case Uneq:
                                 resetbit(&boolexp, op2_ichain->bitpos);
                                 break;
 
@@ -1005,8 +1015,8 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
                         }
                     }
                     ichain = isearchloop(isopihash(expr->data.isop.opc, op1_ichain, op2_ichain), expr, op1_ichain, op2_ichain);
-                    *anticipated = op1ant && op2ant;
-                    *available = op1av && op2av;
+                    *anticipated = op1ant ? op2ant : op1ant;
+                    *available = op1av ? op2av : op1av;
 
                     switch (expr->data.isop.opc) {
                         case Uiequ:
@@ -1015,8 +1025,8 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
                         case Uileq:
                         case Uiles:
                         case Uineq:
-                            *anticipated = *anticipated && expr->initialVal;
-                            *available = *available && !expr->killed;
+                            *anticipated = *anticipated ? expr->unk3 : *anticipated;
+                            *available = *available ? !expr->unk2 : *available;
                             break;
 
                         default:
@@ -1024,8 +1034,8 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
                     }
                 } else {
                     if (expr->data.isop.opc == Uilod) {
-                        if (expr->data.isop.aux.mtagno == 0) {
-                            expr->data.isop.aux.mtagno = assign_mtag(expr->data.isop.unk34);
+                        if (expr->data.isop.aux.unk38_int == 0) {
+                            expr->data.isop.aux.unk38_int = assign_mtag(expr->data.isop.unk34);
                         }
                     }
 
@@ -1057,8 +1067,8 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
                         case Uilod:
                         case Uirld:
                         case Uirlv:
-                            *anticipated = op1ant && expr->initialVal;
-                            *available = op1av && !expr->killed;
+                            *anticipated = op1ant ? expr->unk3 : op1ant;
+                            *available = op1av ? !expr->unk2 : op1av;
                             break;
 
                         default:
@@ -1073,12 +1083,9 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
                     *anticipated = false;
                     *available = false;
                 }
-
-                expr->data.isop.anticipated = *anticipated;
-                expr->data.isop.available = *available;
-
+                expr->data.isop.unk21 = *anticipated;
+                expr->data.isop.unk22 = *available;
                 setbit(&curgraphnode->bvs.stage1.u.precm.expoccur, ichain->bitpos);
-
                 if (*anticipated) {
                     setbit(&curgraphnode->bvs.stage1.antlocs, ichain->bitpos);
                 }
@@ -1091,12 +1098,12 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
 
                 switch (expr->data.isop.opc) {
                     case Uequ:
-                    case Uneq:
                     case Ugeq:
                     case Ugrt:
                     case Uleq:
                     case Ules:
-                        if (expr->data.isop.aux.unk38_trep == NULL) {
+                    case Uneq:
+                        if (expr->data.isop.aux.unk38_int == 0) {
                             trep_image(expr, true,  op1ant, op1av, false);
                             trep_image(expr, false, op2ant, op2av, false);
                         }
@@ -1114,9 +1121,6 @@ struct IChain *exprimage(struct Expression *expr, bool *anticipated, bool *avail
                 break;
 
             default:
-#ifdef AVOID_UB
-                ichain = NULL;
-#endif
                 caseerror(1, 584, "uoptitab.p", 10);
                 break;
         }
@@ -1218,7 +1222,7 @@ struct IChain *searchstore(unsigned short hash, Uopcode opc /* sp3f */, struct I
                                 case Jdt:
                                 case Kdt:
                                 case Ldt:
-                                    setbit(&trapconstop, ichain->bitpos);
+                                    setbit(&trapconstop, (int) ichain->bitpos);
                                     break;
                                 default:
                                     break;
@@ -1237,7 +1241,7 @@ struct IChain *searchstore(unsigned short hash, Uopcode opc /* sp3f */, struct I
 }
 
 /*
-00456310 one_block
+00456310 func_00456310
 0046FCD4 link_jump_in_loop
 00470048 pre_loopblock
 00470248 post_loopblock
@@ -1247,12 +1251,11 @@ struct IChain *searchstore(unsigned short hash, Uopcode opc /* sp3f */, struct I
 void codeimage(void) {
     bool exprant; // expr 1
     bool exprav; // expr 1
-    bool value_ant; // expr 2
-    bool value_av; // expr 2
+    bool storeant; // expr 2
+    bool storeav; // expr 2
     unsigned short opihash;
     struct IChain *ichain; // s3, antlocs
     struct IChain *store_ichain; // s1, avlocs
-    struct IChain *assigned_val;
     struct Statement *stat_tail;
     struct Statement *stat;
 
@@ -1266,57 +1269,60 @@ void codeimage(void) {
                 if (outofmem) return;
             }
 
-            ichain = isearchloop(isvarihash(stat->expr->data.isvar_issvar.location), stat->expr, NULL, NULL);
+            ichain = isearchloop(isvarihash(stat->expr->data.isvar_issvar.var_data), stat->expr, NULL, NULL);
             if (outofmem) return;
 
-            if (!stat->outpar) {
+            if (!stat->unk3) {
                 setbit(&curgraphnode->bvs.stage1.u.precm.expoccur, ichain->bitpos);
-                setbit(&curgraphnode->bvs.stage1.u.precm.expoccur, ichain->isvar_issvar.assignbit);
+                setbit(&curgraphnode->bvs.stage1.u.precm.expoccur, ichain->isop.s.bit);
                 setbit(&curgraphnode->bvs.stage1.alters, ichain->bitpos);
-                if (stat->expr->count != 0) {
-                    setbit(&curgraphnode->bvs.stage1.alters, ichain->isvar_issvar.assignbit);
-                    if (!stat->expr->killed) {
+                if (stat->expr->count) {
+                    setbit(&curgraphnode->bvs.stage1.alters, ichain->isop.s.bit);
+                    if (!stat->expr->unk2) {
                         setbit(&curgraphnode->bvs.stage1.avlocs, ichain->bitpos);
                     }
                 }
 
-                if (ichain->isvar_issvar.veqv) {
+                if (ichain->isvar_issvar.unk1A) {
                     setbit(&vareqv, ichain->bitpos);
-                    setbit(&asgneqv, ichain->isvar_issvar.assignbit);
+                    setbit(&asgneqv, ichain->isop.s.bit);
                 }
 
-                if (stat->u.store.lval_ant) {
-                    setbit(&curgraphnode->bvs.stage1.antlocs, ichain->isvar_issvar.assignbit);
+                if (stat->u.store.unk1C) {
+                    setbit(&curgraphnode->bvs.stage1.antlocs, ichain->isop.s.bit);
                 }
 
-                if (!stat->u.store.lval_ant || !stat->u.store.lval_av) {
-                    setbit(&curgraphnode->bvs.stage1.alters, ichain->isvar_issvar.assignbit);
-                } else {
+                if (!stat->u.store.unk1C || !stat->u.store.unk1D) {
+                    setbit(&curgraphnode->bvs.stage1.alters, ichain->isop.s.bit);
+                }
+                else
+                {
                     stat_tail = curgraphnode->stat_tail;
                     if (stat_tail->opc == Ucia) {
                         if (lang == LANG_ADA) {
-                            setbit(&curgraphnode->bvs.stage1.alters, ichain->isvar_issvar.assignbit);
-                        } else if ((IS_CIA_CALLS_ATTR(stat_tail->u.cia.flags) && cskilled(curlevel, indirprocs, stat)) ||
-                                listpskilled(stat_tail->u.cia.parameters, stat, stat->expr->data.isvar_issvar.vreg)) {
-                            setbit(&curgraphnode->bvs.stage1.alters, ichain->isvar_issvar.assignbit);
+                            setbit(&curgraphnode->bvs.stage1.alters, ichain->isop.s.bit);
+                        } else if (((stat_tail->u.cia.flags & 1) && cskilled(curlevel, indirprocs, stat)) ||
+                                listpskilled(stat_tail->u.cia.parameters, stat, stat->expr->data.isvar_issvar.unk22)) {
+                            setbit(&curgraphnode->bvs.stage1.alters, ichain->isop.s.bit);
                         }
+
                     } else if (stat_tail->opc == Ucup || stat_tail->opc == Uicuf) {
                         if (cskilled(stat_tail->u.call.level, stat_tail->u.call.proc, stat) ||
-                                listpskilled(stat_tail->u.call.parameters, stat, stat->expr->data.isvar_issvar.vreg)) {
-                            setbit(&curgraphnode->bvs.stage1.alters, ichain->isvar_issvar.assignbit);
+                                listpskilled(stat_tail->u.call.parameters, stat, stat->expr->data.isvar_issvar.unk22)) {
+                            setbit(&curgraphnode->bvs.stage1.alters, ichain->isop.s.bit);
                         }
                     }
                 }
 
-                assigned_val = exprimage(stat->expr->data.isvar_issvar.assigned_value, &value_ant, &value_av);
+                store_ichain = exprimage(stat->expr->data.isvar_issvar.assigned_value, &storeant, &storeav);
                 if (outofmem) return;
-                if (assigned_val == NULL) {
+                if (store_ichain == NULL) {
                     dbgerror(0x1AC);
                 }
-                if (assigned_val->type == isop) {
+                if (store_ichain->type == isop) {
                     // store_chain->opc in [Uequ, ...]
                     // Bool expressions
-                    switch (assigned_val->isop.opc) {
+                    switch (store_ichain->isop.opc) {
                         case Uequ:
                         case Ugeq:
                         case Ugrt:
@@ -1324,7 +1330,7 @@ void codeimage(void) {
                         case Uleq:
                         case Ules:
                         case Uneq:
-                            resetbit(&boolexp, assigned_val->bitpos);
+                            resetbit(&boolexp, store_ichain->bitpos);
                             break;
 
                         default:
@@ -1332,59 +1338,49 @@ void codeimage(void) {
                     }
                 }
 
-                store_ichain = searchstore(isopihash(stat->opc, ichain, assigned_val), stat->opc, ichain, assigned_val, 0, 0);
+                store_ichain = searchstore(isopihash(stat->opc, ichain, store_ichain), stat->opc, ichain, store_ichain, 0, 0);
                 if (outofmem) return;
 
                 setbit(&curgraphnode->bvs.stage1.u.precm.expoccur, store_ichain->bitpos);
                 store_ichain->isop.stat = stat;
                 store_ichain->dtype = ichain->dtype;
                 stat->u.store.ichain = store_ichain;
-
-                // an asignment is ANTLOC only if there are no uses of the destination before the assignment (lval_ant),
-                // the assignment is locally anticipated (store_ant)
-                // and the assigned expression is not modified (value_ant)
-                if (stat->u.store.lval_ant && stat->u.store.store_ant && value_ant) {
+                if (stat->u.store.unk1C && stat->u.store.unk1E && storeant) {
                     setbit(&curgraphnode->bvs.stage1.antlocs, store_ichain->bitpos);
                 }
-                if (!stat->u.store.store_ant || !stat->u.store.store_av ||
-                        !stat->u.store.lval_ant || !stat->u.store.lval_av ||
-                        !value_ant || !value_av) {
+                if (!stat->u.store.unk1E || !stat->u.store.unk1F ||
+                        !stat->u.store.unk1C || !stat->u.store.unk1D ||
+                        !storeant || !storeav) {
                     setbit(&curgraphnode->bvs.stage1.alters, store_ichain->bitpos);
                 }
-
-                // PAVLOC (partially available) only takes into account the assignment itself (store_av),
-                // and the assigned value (value_av)
-                //
-                // The destination var could be used before or after the assignment, unlike for ANTLOC
-                if (stat->u.store.store_av && value_av) {
+                if (stat->u.store.unk1F && storeav) {
                     setbit(&curgraphnode->bvs.stage1.u.precm.pavlocs, store_ichain->bitpos);
                 }
-
-                // ABSALTERED (Absolutely altered) similarly ignores whether the destination variable was used in the block.
-                if (!stat->u.store.store_ant || !stat->u.store.store_av ||
-                        !value_ant || !value_av) {
+                if (!stat->u.store.unk1E || !stat->u.store.unk1F ||
+                        !storeant || !storeav) {
                     setbit(&curgraphnode->bvs.stage1.absalters, store_ichain->bitpos);
                 }
             } else {
                 setbit(&curgraphnode->bvs.stage1.alters, ichain->bitpos);
-                if (stat->expr->count != 0) {
-                    setbit(&curgraphnode->bvs.stage1.alters, ichain->isvar_issvar.assignbit);
-                    if (!stat->expr->killed) {
+                if (stat->expr->count) {
+                    setbit(&curgraphnode->bvs.stage1.alters, ichain->isop.s.bit);
+                    if (!stat->expr->unk2) {
                         setbit(&curgraphnode->bvs.stage1.avlocs, ichain->bitpos);
                     }
                 }
 
-                setbit(&curgraphnode->bvs.stage1.antlocs, ichain->isvar_issvar.assignbit);
-                if (!stat->u.store.lval_av) {
-                    setbit(&curgraphnode->bvs.stage1.alters, ichain->isvar_issvar.assignbit);
+                setbit(&curgraphnode->bvs.stage1.antlocs, ichain->isop.s.bit);
+                if (!stat->u.store.unk1D) {
+                    setbit(&curgraphnode->bvs.stage1.alters, ichain->isop.s.bit);
                 } else {
                     stat_tail = curgraphnode->stat_tail;
                     if (stat_tail->opc == Ucia) {
-                        setbit(&curgraphnode->bvs.stage1.alters, ichain->isvar_issvar.assignbit);
-                    } else if (stat_tail->opc == Ucup || stat_tail->opc == Uicuf) {
+                        setbit(&curgraphnode->bvs.stage1.alters, ichain->isop.s.bit);
+                    }
+                    else if (stat_tail->opc == Ucup || stat_tail->opc == Uicuf) {
                         if (cskilled(stat_tail->u.call.level, stat_tail->u.call.proc, stat) ||
-                                listpskilled(curgraphnode->stat_tail->u.call.parameters, stat, stat->expr->data.isvar_issvar.vreg)) {
-                            setbit(&curgraphnode->bvs.stage1.alters, ichain->isvar_issvar.assignbit);
+                                listpskilled(curgraphnode->stat_tail->u.call.parameters, stat, stat->expr->data.isvar_issvar.unk22)) {
+                            setbit(&curgraphnode->bvs.stage1.alters, ichain->isop.s.bit);
                         }
                     }
                 }
@@ -1393,29 +1389,29 @@ void codeimage(void) {
         } else {
             // stat->opc not in [Uaent, ...]
             switch (stat->opc) {
-                case Unop:
-                case Uujp:
-                case Ulab:
-                case Uclab:
-                case Umst:
-                case Ubgnb:
-                case Uendb:
-                case Uret:
-                case Uloc:
-                case Udef:
-                case Ucup:
-                case Uicuf:
-                case Urcuf:
-                case Ucia:
                 case Uaent:
+                case Ubgnb:
+                case Ucia:
+                case Uclab:
+                case Uclbd:
+                case Uctrl:
+                case Ucubd:
+                case Ucup:
+                case Udef:
+                case Uendb:
+                case Uicuf:
+                case Ulab:
+                case Ulbdy:
                 case Ulbgn:
                 case Ulend:
+                case Uloc:
                 case Ultrm:
-                case Ulbdy:
-                case Uclbd:
-                case Ucubd:
+                case Umst:
+                case Unop:
+                case Uret:
                 case Ustep:
-                case Uctrl:
+                case Uujp:
+                case Urcuf:
                     continue;
 
                 default:
@@ -1447,7 +1443,7 @@ void codeimage(void) {
 
             store_ichain = NULL;
             if (stat->opc != Uchkt) {
-                store_ichain = exprimage(stat->u.store.expr, &value_ant, &value_av);
+                store_ichain = exprimage(stat->u.store.expr, &storeant, &storeav);
             }
             if (outofmem) return;
 
@@ -1521,28 +1517,32 @@ void codeimage(void) {
                 opihash = isopihash(stat->opc, ichain, NULL);
             } else {
                 opihash = isopihash(stat->opc, ichain, store_ichain);
-            }
 
+            }
             switch (stat->opc) {
                 case Uistr:
                 case Uistv:
                 case Uirst:
                 case Uirsv:
-                    store_ichain = searchstore(opihash, stat->opc, ichain, store_ichain, stat->u.store.u.istr.offset, stat->u.store.size);
-                    break;
-
-                case Uchkt:
-                case Utpeq:
-                case Utpge:
-                case Utpgt:
-                case Utple:
-                case Utplt:
-                case Utpne:
-                    store_ichain = searchstore(opihash, stat->opc, ichain, store_ichain, stat->u.trap.num, 0);
+                    store_ichain = searchstore(opihash, stat->opc, ichain, store_ichain, stat->u.store.u.istr.s.word, stat->u.store.size);
                     break;
 
                 default:
-                    store_ichain = searchstore(opihash, stat->opc, ichain, store_ichain, 0, 0);
+                    switch (stat->opc) {
+                        case Uchkt:
+                        case Utpeq:
+                        case Utpge:
+                        case Utpgt:
+                        case Utple:
+                        case Utplt:
+                        case Utpne:
+                            store_ichain = searchstore(opihash, stat->opc, ichain, store_ichain, stat->u.trap.num, 0);
+                            break;
+
+                        default:
+                            store_ichain = searchstore(opihash, stat->opc, ichain, store_ichain, 0, 0);
+                            break;
+                    }
                     break;
             }
             if (outofmem) return;
@@ -1563,53 +1563,53 @@ void codeimage(void) {
                         stat->opc == Uistv ||
                         stat->opc == Uirst ||
                         stat->opc == Uirsv) {
-                    store_ichain->isop.s.word = stat->u.store.u.istr.offset;
+                    store_ichain->isop.s = stat->u.store.u.istr.s;
                     store_ichain->dtype = stat->u.store.u.istr.dtype;
-                    store_ichain->isop.unk13 = stat->u.store.u.istr.align;
+                    store_ichain->isop.unk13 = stat->u.store.u.istr.unk2D;
                 }
 
 
                 if (stat->opc == Umov || stat->opc == Umovv) {
-                    store_ichain->isop.unk24_u16 = stat->u.store.u.mov.src_align + (stat->u.store.u.mov.dst_align << 8);
+                    store_ichain->isop.s.bit = stat->u.store.u.mov.unk32 + (stat->u.store.u.mov.unk33 << 8);
                 }
 
-                if (stat->u.store.lval_ant && stat->u.store.store_ant && exprant && value_ant) {
+                if (stat->u.store.unk1C && stat->u.store.unk1E && exprant && storeant) {
                     setbit(&curgraphnode->bvs.stage1.antlocs, store_ichain->bitpos);
                 }
 
-                if (!stat->u.store.lval_ant || !stat->u.store.lval_av ||
-                        !stat->u.store.store_ant || !stat->u.store.store_av ||
-                        !exprant || !exprav || !value_ant || !value_av) {
+                if (!stat->u.store.unk1C || !stat->u.store.unk1D ||
+                        !stat->u.store.unk1E || !stat->u.store.unk1F ||
+                        !exprant || !exprav || !storeant || !storeav) {
                     setbit(&curgraphnode->bvs.stage1.alters, store_ichain->bitpos);
                 }
-                if (stat->u.store.store_av && exprav && value_av) {
+                if (stat->u.store.unk1F && exprav && storeav) {
                     setbit(&curgraphnode->bvs.stage1.u.precm.pavlocs, store_ichain->bitpos);
                 }
-                if (!stat->u.store.store_ant || !stat->u.store.store_av ||
-                        !exprant || !exprav || !value_ant || !value_av) {
+                if (!stat->u.store.unk1E || !stat->u.store.unk1F ||
+                        !exprant || !exprav || !storeant || !storeav) {
                     setbit(&curgraphnode->bvs.stage1.absalters, store_ichain->bitpos);
                 }
             } else {
                 // traps
                 if (stat->opc == Uchkt) {
-                    value_ant = true;
-                    value_av = true;
+                    storeant = true;
+                    storeav = true;
                 } else {
                     store_ichain->dtype = stat->u.trap.dtype;
                 }
-                if (exprant && value_ant) {
+                if (exprant && storeant) {
                     setbit(&curgraphnode->bvs.stage1.antlocs, store_ichain->bitpos);
                 }
-                if (exprav && value_av) {
+                if (exprav && storeav) {
                     setbit(&curgraphnode->bvs.stage1.avlocs, store_ichain->bitpos);
                 }
-                if (!exprant || !exprav || !value_ant || !value_av) {
+                if (!exprant || !exprav || !storeant || !storeav) {
                     setbit(&curgraphnode->bvs.stage1.alters, store_ichain->bitpos);
                 }
             }
 
-            if (stat->opc == Uistr && stat->u.store.u.istr.mtagno == 0) {
-                stat->u.store.u.istr.mtagno = assign_mtag(stat->u.store.baseaddr);
+            if (stat->opc == Uistr && stat->u.store.u.istr.offset == 0) {
+                stat->u.store.u.istr.offset = assign_mtag(stat->u.store.baseaddr);
             }
         }
     } while ((stat = stat->next) != NULL);

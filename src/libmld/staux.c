@@ -1,4 +1,3 @@
-#if 0
 __asm__(R""(
 .macro glabel label
     .global \label
@@ -727,4 +726,3 @@ glabel st_addcontinued
     .size st_addcontinued, .-st_addcontinued
     .end st_addcontinued
 )"");
-#endif

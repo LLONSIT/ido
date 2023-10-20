@@ -17,7 +17,7 @@
 00421C00 epilog
 00422AF0 func_00422AF0
 00422D04 func_00422D04
-004230F0 emit_expr
+004230F0 func_004230F0
 00426FA4 func_00426FA4
 0042933C func_0042933C
 0042A1C8 func_0042A1C8
@@ -36,7 +36,7 @@
 0043C56C func_0043C56C
 0043CE64 func_0043CE64
 0043CFCC readnxtinst
-00456310 one_block
+00456310 func_00456310
 00456A2C oneproc
 0045806C main
 00459400 updatelab
@@ -51,7 +51,7 @@
 union Bcode u;
 
 /*
-00414108 insert_copied_expr
+00414108 func_00414108
 0041FD3C genloadnum
 0042BD94 func_0042BD94
 0042BF08 reemit
@@ -154,14 +154,14 @@ union Bcode lastcopiedu;
 0040C4C4 checkbvlist
 0040F610 formbvlivran
 0040F7B8 checkinitbvlivran
-00414108 insert_copied_expr
+00414108 func_00414108
 0042020C gen_static_link
 00425618 func_00425618
 00426DE8 func_00426DE8
 0042EB10 incorp_feedback
 0042F424 appendgraph
 0042F6CC controlflow
-00430680 find_recurring_mem_accesses
+00430680 func_00430680
 00434434 func_00434434
 0043771C optinit
 00439188 procinit
@@ -180,7 +180,7 @@ union Bcode lastcopiedu;
 00445E44 exprimage
 0044EDF8 ilodfold
 00453B04 func_00453B04
-00456310 one_block
+00456310 func_00456310
 00456A2C oneproc
 0045877C searchmtag_parm
 00458998 func_00458998
@@ -232,20 +232,20 @@ struct AllocBlock *heapptr;
 /*
 0040F8D0 resetsubdelete
 00410204 codemotion
-0041297C exprant
-00412B18 exprav
+0041297C func_0041297C
+00412B18 func_00412B18
 00413000 exprdelete
 00413684 func_00413684
-00414108 insert_copied_expr
-0041550C find_replacements
+00414108 func_00414108
+0041550C func_0041550C
 00422D04 func_00422D04
-004230F0 emit_expr
+004230F0 func_004230F0
 00424FFC func_00424FFC
 00425618 func_00425618
 00426FA4 func_00426FA4
-0043005C get_ilod
-00430BF4 no_var_mults
-00430FF4 setcand
+0043005C func_0043005C
+00430BF4 func_00430BF4
+00430FF4 func_00430FF4
 004376E0 func_004376E0
 00439C40 getop
 0043A8F0 constexp
@@ -257,7 +257,7 @@ struct AllocBlock *heapptr;
 00448530 has_direct_induct_usage
 00448928 check_loop_induct_usages
 00454F00 func_00454F00
-00456310 one_block
+00456310 func_00456310
 00456A2C oneproc
 0045CBDC cupaltered
 0045CD78 expaltered
@@ -293,15 +293,15 @@ struct optabrec optab[0x9C];
 /*
 00439C40 getop
 0043CFCC readnxtinst
-00456310 one_block
+00456310 func_00456310
 00456A2C oneproc
 */
 bool endblock;
 
 /*
-004137DC copy_searchloop
-004150E4 add_cvtl
-0041550C find_replacements
+004137DC func_004137DC
+004150E4 func_004150E4
+0041550C func_0041550C
 0041AC2C printtab
 00425618 func_00425618
 00439188 procinit
@@ -408,7 +408,7 @@ struct Temploc *temploctail;
 004175BC copypropagate
 0042020C gen_static_link
 0042BF08 reemit
-00431508 candidate
+00431508 func_00431508
 004324F4 findinduct
 0043771C optinit
 0043A0CC copyline
@@ -430,7 +430,7 @@ struct Temploc *temploctail;
 int curlevel;
 
 /*
-0041550C find_replacements
+0041550C func_0041550C
 004175BC copypropagate
 0041EC10 igen3
 0041EE30 outparlod
@@ -440,7 +440,7 @@ int curlevel;
 004205F8 genrlodrstr
 00420A3C prolog
 00421C00 epilog
-004230F0 emit_expr
+004230F0 func_004230F0
 00426FA4 func_00426FA4
 0042A1C8 func_0042A1C8
 0042A4CC func_0042A4CC
@@ -510,7 +510,7 @@ char entnam0[1024];
 size_t entnam0len;
 
 /*
-00414108 insert_copied_expr
+00414108 func_00414108
 0041C914 printregs
 0041FD3C genloadnum
 00439188 procinit
@@ -554,7 +554,7 @@ int strpdisplace;
 /*
 0043771C optinit
 00452DAC constarith
-00456310 one_block
+00456310 func_00456310
 00456A2C oneproc
 */
 bool filteringout;
@@ -625,7 +625,7 @@ struct Graphnode *graphhead;
 00439188 procinit
 0043CA8C func_0043CA8C
 0043CFCC readnxtinst
-00456310 one_block
+00456310 func_00456310
 00456A2C oneproc
 004638C0 regdataflow
 004713E8 loopunroll
@@ -655,7 +655,7 @@ struct Graphnode *graphtail;
 0044C648 ciakillprev
 0044D6EC parkillprev
 00452DAC constarith
-00456310 one_block
+00456310 func_00456310
 00456A2C oneproc
 0046C710 unroll_searchloop
 0046D158 unroll_check_istr_propcopy
@@ -689,7 +689,7 @@ struct Graphnode *curgraphnode;
 0043CFCC readnxtinst
 00445E44 exprimage
 00455D38 analoop
-00456310 one_block
+00456310 func_00456310
 00456A2C oneproc
 00461AAC makelivranges
 00464BFC localcolor
@@ -722,7 +722,7 @@ struct Statement *stathead;
 00439188 procinit
 0043AA18 appendstorelist
 0043CFCC readnxtinst
-00456310 one_block
+00456310 func_00456310
 0046E77C oneloopblockstmt
 0046FCD4 link_jump_in_loop
 00470048 pre_loopblock
@@ -760,15 +760,15 @@ int staticlinkloc;
 0040F8D0 resetsubdelete
 004120E0 entryav
 004121E4 entryant
-0041297C exprant
-00412B18 exprav
+0041297C func_0041297C
+00412B18 func_00412B18
 00413000 exprdelete
-00413510 adjust_count
+00413510 func_00413510
 004135CC func_004135CC
-0041550C find_replacements
+0041550C func_0041550C
 0041AC2C printtab
 0042305C func_0042305C
-004230F0 emit_expr
+004230F0 func_004230F0
 00424FFC func_00424FFC
 0043771C optinit
 00445AEC trep_image
@@ -791,7 +791,7 @@ int staticlinkloc;
 struct Expression *nocopy;
 
 /*
-004230F0 emit_expr
+004230F0 func_004230F0
 00426FA4 func_00426FA4
 0042B2C0 func_0042B2C0
 0043771C optinit
@@ -800,14 +800,14 @@ struct Expression *nocopy;
 0046123C func_0046123C
 00474FC8 func_00474FC8
 */
-struct StrengthReductionCand *nota_candof;
+void *nota_candof; // TODO: fix type (0x1C bytes allocated)
 
 /*
-004150E4 add_cvtl
-0041550C find_replacements
+004150E4 func_004150E4
+0041550C func_0041550C
 0043771C optinit
 */
-struct VarAccessList *constprop;
+void *constprop; // TODO: fix type (0x10 bytes allocated)
 
 /*
 0042BF08 reemit
@@ -827,7 +827,7 @@ int maxlabnam;
 004669A8 addadjacents
 00469280 globalcolor
 */
-struct LiveUnit *dft_livbb;
+struct livbb *dft_livbb;
 
 /*
 00410204 codemotion
@@ -855,8 +855,8 @@ struct LiveUnit *dft_livbb;
 int bitposcount;
 
 /*
-004150E4 add_cvtl
-0041550C find_replacements
+004150E4 func_004150E4
+0041550C func_0041550C
 004175BC copypropagate
 0041C914 printregs
 00469280 globalcolor
@@ -989,7 +989,7 @@ struct BitVector trapop;
 struct BitVector trapconstop;
 
 /*
-0041550C find_replacements
+0041550C func_0041550C
 0041B8C8 printlinfo
 0041C1B0 printcm
 004324F4 findinduct
@@ -1003,7 +1003,7 @@ struct BitVector indmults;
 
 /*
 00410204 codemotion
-0041550C find_replacements
+0041550C func_0041550C
 004175BC copypropagate
 0041B8C8 printlinfo
 004324F4 findinduct
@@ -1055,7 +1055,7 @@ struct BitVector outmodebits;
 struct BitVector notinmodebits;
 
 /*
-00431508 candidate
+00431508 func_00431508
 00439188 procinit
 00479DC4 eliminduct
 */
@@ -1146,7 +1146,7 @@ struct BitVector workbvect;
 004175BC copypropagate
 0041A410 printitab
 0041C914 printregs
-004230F0 emit_expr
+004230F0 func_004230F0
 00426FA4 func_00426FA4
 0042AADC func_0042AADC
 0042B2C0 func_0042B2C0
@@ -1207,7 +1207,7 @@ int pdeftabsize;
 0041FC80 genloadaddr
 0042020C gen_static_link
 004205F8 genrlodrstr
-004230F0 emit_expr
+004230F0 func_004230F0
 00426FA4 func_00426FA4
 0042A1C8 func_0042A1C8
 0042A4CC func_0042A4CC
@@ -1241,7 +1241,7 @@ int pdefno;
 /*
 00410204 codemotion
 0042020C gen_static_link
-00430680 find_recurring_mem_accesses
+00430680 func_00430680
 004324F4 findinduct
 00439188 procinit
 00444984 appendichain
@@ -1256,7 +1256,7 @@ struct IChain *itable[1619];
 00456A2C oneproc
 00475680 getexpsources
 */
-struct Loop *toplevelloops;
+void *toplevelloops; // TODO: fix type (some linked list of 20 bytes data + 4 byte next ptr)
 
 /*
 0042AADC func_0042AADC
@@ -1272,7 +1272,7 @@ struct Loop *toplevelloops;
 00480624 check_ix_source
 00480698 get_ix_source
 */
-struct LooptabItem *looptab;
+void *looptab; // TODO: fix type
 
 /*
 00434720 processargs
@@ -1446,7 +1446,7 @@ long long int usedeeregs[2];
 004394FC procinit_regs
 00461AAC makelivranges
 */
-long long int dftregsused; // default registers used
+long long int dftregsused;
 
 /*
 004394FC procinit_regs
@@ -1599,7 +1599,7 @@ bool o0o1specified;
 0041F5E4 base_sp_noalias
 00420A3C prolog
 0042BF08 reemit
-00431508 candidate
+00431508 func_00431508
 004324F4 findinduct
 00434720 processargs
 0043771C optinit
@@ -1615,10 +1615,10 @@ bool o0o1specified;
 0044B4F4 clkilled
 0044BD00 cmkilled
 0044BDFC cskilled
-0044C6D4 plkilled
+0044C6D4 func_0044C6D4
 0044CD14 listplkilled
-0044CE80 pmkilled
-0044D0C4 pskilled
+0044CE80 func_0044CE80
+0044D0C4 func_0044D0C4
 0044D4B4 listpskilled
 00454D08 func_00454D08
 00455060 func_00455060
@@ -1684,7 +1684,7 @@ bool usefeedback;
 /*
 00439C40 getop
 0043CFCC readnxtinst
-00456310 one_block
+00456310 func_00456310
 */
 int varrefs;
 
@@ -1694,13 +1694,13 @@ int totalvarref;
 /*
 00434720 processargs
 0043771C optinit
-00456310 one_block
+00456310 func_00456310
 */
 int varreflimit;
 
 /*
 00439C40 getop
-00456310 one_block
+00456310 func_00456310
 */
 int curvarreflimit;
 
@@ -1797,7 +1797,7 @@ int dbugno;
 bool genbbnum;
 
 /*
-0041550C find_replacements
+0041550C func_0041550C
 00434720 processargs
 0043771C optinit
 0043ABD0 incroccurrence
@@ -1871,7 +1871,7 @@ bool do_const_in_reg;
 bool docodehoist;
 
 /*
-00431508 candidate
+00431508 func_00431508
 00434720 processargs
 0043771C optinit
 */
@@ -2101,10 +2101,10 @@ bool dokpicopt;
 /*
 0040F610 formbvlivran
 00410204 codemotion
-004137DC copy_searchloop
-00414108 insert_copied_expr
-004150E4 add_cvtl
-0041550C find_replacements
+004137DC func_004137DC
+00414108 func_00414108
+004150E4 func_004150E4
+0041550C func_0041550C
 004175BC copypropagate
 0042F424 appendgraph
 00439188 procinit
@@ -2126,7 +2126,7 @@ bool dokpicopt;
 004510A0 distrlaw
 00451764 restructure
 00452DAC constarith
-00456310 one_block
+00456310 func_00456310
 00456A2C oneproc
 0045D208 patchvectors
 0045DA18 formlivbb
@@ -2258,7 +2258,7 @@ bool use_c_semantics;
 0041FB20 spilltemplodstr
 0042020C gen_static_link
 004205F8 genrlodrstr
-004230F0 emit_expr
+004230F0 func_004230F0
 00426FA4 func_00426FA4
 0042A1C8 func_0042A1C8
 0042A4CC func_0042A4CC
@@ -2279,7 +2279,7 @@ bool use_c_semantics;
 bool stack_reversed;
 
 /*
-0041550C find_replacements
+0041550C func_0041550C
 00434720 processargs
 0043771C optinit
 0043CFCC readnxtinst
@@ -2351,7 +2351,7 @@ struct LdatabEntry *ldatab[3113];
 
 /*
 00410204 codemotion
-0041550C find_replacements
+0041550C func_0041550C
 004175BC copypropagate
 0041D560 printinterproc
 0042020C gen_static_link
@@ -2388,7 +2388,7 @@ struct Proc *curproc;
 
 /*
 004175BC copypropagate
-00431508 candidate
+00431508 func_00431508
 004324F4 findinduct
 0043CFCC readnxtinst
 004471AC codeimage

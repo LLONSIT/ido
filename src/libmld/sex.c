@@ -1,11 +1,9 @@
-#include "sex.h"
-
 int gethostsex(void) {
     union {
-        int word;
-        char byte;
-    } sex;
+        int i;
+        char b;
+    } u;
 
-    sex.word = 1;
-    return sex.byte == 1 ? LITTLEENDIAN : BIGENDIAN;
+    u.i = 1;
+    return u.b == 1 ? 1 : 0;
 }

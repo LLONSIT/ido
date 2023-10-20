@@ -360,6 +360,7 @@ int read_integer(FILE *file, unsigned int radix) {
     int first_ch;
     int overflowed;
     unsigned int digit;
+    int reached_eof;
     unsigned int value;
     int new_radix = 0;
 
@@ -493,8 +494,10 @@ int read_integer_range(FILE *file, int min, int max, unsigned int radix) {
 // unused
 unsigned int read_cardinal(FILE *file, unsigned int radix) {
     int ch;
+    int first_ch;
     int overflowed;
     unsigned int digit;
+    int reached_eof;
     unsigned int value;
     int new_radix = 0;
 

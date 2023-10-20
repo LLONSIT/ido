@@ -59,7 +59,7 @@ int eopage(struct PascalFile *file) {
 }
 
 // unused
-void readpage(struct PascalFile *file) {
+int readpage(struct PascalFile *file) {
     next_char(file->c_file);
 }
 

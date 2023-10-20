@@ -12,7 +12,7 @@
 #include "uoptdbg.h"
 #include "uoptcontrolflow.h"
 #include "uoptdata.h"
-#include "uoptfeedback.h"
+#include "feedback.h"
 
 extern int __Argc;
 
@@ -668,7 +668,7 @@ void optinit(void) {
     set_optab_entry(Uxor,  0, 1, 1);
 
     perm_heap = NULL;
-    ustrptr = alloc_new(1024, &perm_heap);
+    ustrptr = alloc_new(0x400, &perm_heap);
     ustackbot = (struct UstackEntry *)alloc_new(sizeof(struct UstackEntry), &perm_heap);
     ustackbot->up = NULL;
     ustackbot->down = NULL;
@@ -746,42 +746,38 @@ void optinit(void) {
         incorp_feedback();
     }
     nocopy = alloc_new(sizeof (struct Expression), &perm_heap);
-    nota_candof = alloc_new(sizeof (struct StrengthReductionCand), &perm_heap);
-    constprop = alloc_new(sizeof (struct VarAccessList), &perm_heap);
+    nota_candof = alloc_new(0x1C, &perm_heap);
+    constprop = alloc_new(0x10, &perm_heap);
 
     // see coloroffset
-    // the classes were 1-indexed in the original pascal, so regsinclass[1] is "regsinclass2"
     regsinclass1 = 23;
-    firsterreg[0] = er_v0;
-    firsteereg[0] = ee_s0;
-    firstparmreg[0] = er_a0;
+    firsterreg[0] = 1;
+    firsteereg[0] = 14;
+    firstparmreg[0] = 3;
 
     regsinclass[1] = 12;
-    firsterreg[1] = fp_f0;
-    firstparmreg[1] = fp_f12;
+    firsterreg[1] = 24;
+    firstparmreg[1] = 26;
     numoferregs[1] = 6;
-    lasterreg[1] = fp_f18;
-    firsteereg[1] = fp_f20;
-    lasteereg[1] = fp_f30;
+    lasterreg[1] = 29;
+    firsteereg[1] = 30;
+    lasteereg[1] = 35;
     seterregs[1] = GENMASK(firsterreg[1], lasterreg[1] + 1);
     seteeregs[1] = GENMASK(firsteereg[1], lasteereg[1] + 1);
     setregs[1] = (seterregs[1] | seteeregs[1]);
 
     gsptr = alloc_new(sizeof(struct Statement), &perm_heap);
-#ifdef AVOID_UB
-    *gsptr = (struct Statement){0};
-#endif
     gsptr->opc = Ustr;
 
-    dft_livbb = alloc_new(sizeof(struct LiveUnit), &perm_heap);
-    dft_livbb->load_count = 0;
-    dft_livbb->store_count = 0;
+    dft_livbb = (struct livbb *)alloc_new(0x18, &perm_heap);
+    dft_livbb->unk10 = 0;
+    dft_livbb->unk12 = 0;
     dft_livbb->firstisstr = false;
-    dft_livbb->node = NULL;
-    dft_livbb->reg = 0;
+    dft_livbb->unk0 = NULL;
+    dft_livbb->unk13 = 0;
     dft_livbb->next = NULL;
-    dft_livbb->liverange = NULL;
-    dft_livbb->next_in_block = NULL;
+    dft_livbb->unk8 = 0;
+    dft_livbb->unkC = 0;
     dft_livbb->needreglod = false;
     dft_livbb->needregsave = false;
     dft_livbb->deadout = false;
@@ -920,10 +916,6 @@ void procinit(void) {
     has_exc_handler = false;
     can_elim_tail = true;
     use_c_semantics = false;
-#ifdef AVOID_UB
-    // toplevelloops is never cleared after the first function, so print_loop_relations crashes
-    toplevelloops = NULL;
-#endif
 }
 
 #define BIT(pos) ((unsigned long long int)((unsigned int)(pos) < 64) << (~(pos) & 0x3f))
@@ -983,35 +975,35 @@ void procinit_regs(void) {
     highesterreg[1] = 27;
     usedeeregs[1] = 0;
     highesteereg[1] = lasterreg[1];
-
     if (!usingregoption) {
         if (!no_r23) {
             dftregsused = 0;
-        } else if (!no_r3) {
-            dftregsused = BIT(21);
-        } else {
-            dftregsused = BIT(2) | BIT(21);
+            return;
         }
-    } else {
-        dftregsused = GENMASK(3, 6 + 1); // a0 to a3
-        if (actnuminterregs != 9) {
-            dftregsused = GENMASK(1, 13 + 1); // v0 to ra
-            if (actnuminterregs > 0) {
-                dftregsused = GENMASK(7, MIN(actnuminterregs, 6) + 6 + 1); // t0 to t5
-                if (actnuminterregs == 7) {
-                    dftregsused &= ~BIT(2);
-                } else if (actnuminterregs == 8) {
-                    dftregsused &= ~(BIT(2) | BIT(6));
-                } else if (actnuminterregs == 9) {
-                    dftregsused &= ~(BIT(2) | BIT(6) | BIT(13));
-                }
+        if (!no_r3) {
+            dftregsused = BIT(21);
+            return;
+        }
+        dftregsused = BIT(2) | BIT(21);
+    }
+    dftregsused = GENMASK(3, 6 + 1); // a0 to a3
+    if (actnuminterregs != 9) {
+        dftregsused = GENMASK(1, 13 + 1); // v0 to ra
+        if (actnuminterregs > 0) {
+            dftregsused = GENMASK(7, MIN(actnuminterregs, 6) + 6 + 1); // t0 to t5
+            if (actnuminterregs == 7) {
+                dftregsused &= ~BIT(2);
+            } else if (actnuminterregs == 8) {
+                dftregsused &= ~(BIT(2) | BIT(6));
+            } else if (actnuminterregs == 9) {
+                dftregsused &= ~(BIT(2) | BIT(6) | BIT(13));
             }
         }
-        if (actnuminteeregs != 10) {
-            dftregsused = GENMASK(firsteereg[0] + actnuminteeregs, lasteereg[0] + 1);
-        }
-        dftregsused &= setregs[0];
     }
+    if (actnuminteeregs != 10) {
+        dftregsused = GENMASK(firsteereg[0] + actnuminteeregs, lasteereg[0] + 1);
+    }
+    dftregsused &= setregs[0];
 }
 
 /*

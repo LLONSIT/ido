@@ -7,7 +7,7 @@
 #include "uoptcontrolflow.h"
 
 /* 
-0041550C find_replacements
+0041550C func_0041550C
 0044FF6C mergeconst
 004510A0 distrlaw
 00451764 restructure
@@ -20,9 +20,9 @@ bool binaryovfw(Datatype dtype, Uopcode opc, struct Expression *left, struct Exp
             if (left->type == islda && right->type == islda) {
                 overflow = true;
             } else if (left->type == islda) {
-                overflow = addovfw(Adt, left->data.islda_isilda.offset, right->data.isconst.number.intval);
+                overflow = addovfw(Adt, left->data.islda_isilda.addr, right->data.isconst.number.intval);
             } else if (right->type == islda) {
-                overflow = addovfw(Adt, right->data.islda_isilda.offset, left->data.isconst.number.intval);
+                overflow = addovfw(Adt, right->data.islda_isilda.addr, left->data.isconst.number.intval);
             } else {
                 overflow = addovfw(dtype, left->data.isconst.number.intval, right->data.isconst.number.intval);
             }
@@ -32,9 +32,9 @@ bool binaryovfw(Datatype dtype, Uopcode opc, struct Expression *left, struct Exp
             if (left->type == islda && right->type == islda) {
                 overflow = false;
             } else if (left->type == islda) {
-                overflow = subovfw(Adt, left->data.islda_isilda.offset, right->data.isconst.number.intval);
+                overflow = subovfw(Adt, left->data.islda_isilda.addr, right->data.isconst.number.intval);
             } else if (right->type == islda) {
-                overflow = subovfw(Adt, left->data.isconst.number.intval, right->data.islda_isilda.offset);
+                overflow = subovfw(Adt, left->data.isconst.number.intval, right->data.islda_isilda.addr);
             } else {
                 overflow = subovfw(dtype, left->data.isconst.number.intval, right->data.isconst.number.intval);
             }
@@ -50,8 +50,6 @@ bool binaryovfw(Datatype dtype, Uopcode opc, struct Expression *left, struct Exp
                 overflow = true;
             } else if (dtype == Idt || dtype == Jdt) {
                 overflow = left->data.isconst.number.intval == 0x80000000 && right->data.isconst.number.intval == -1;
-            } else {
-                overflow = false;
             }
             break;
 
@@ -98,7 +96,7 @@ bool binaryovfw(Datatype dtype, Uopcode opc, struct Expression *left, struct Exp
 }
 
 /* 
-0041550C find_replacements
+0041550C func_0041550C
 0044FF6C mergeconst
 00451764 restructure
 */
@@ -106,7 +104,7 @@ bool ixaovfw(struct Expression *expr, struct Expression *left, struct Expression
     unsigned int address;
 
     if (left->type == islda) {
-        address = left->data.islda_isilda.offset;
+        address = left->data.islda_isilda.addr;
     } else {
         address = left->data.isconst.number.intval;
     }
@@ -118,7 +116,7 @@ bool ixaovfw(struct Expression *expr, struct Expression *left, struct Expression
 }
 
 /* 
-0041550C find_replacements
+0041550C func_0041550C
 00451764 restructure
 */
 bool unaryovfw(struct Expression *expr) {
@@ -132,7 +130,7 @@ bool unaryovfw(struct Expression *expr) {
 
         case Udec:
             if (expr->data.isop.op1->type == islda) {
-                overflow = subovfw(expr->datatype, expr->data.isop.op1->data.islda_isilda.offset, expr->data.isop.datasize);
+                overflow = subovfw(expr->datatype, expr->data.isop.op1->data.islda_isilda.addr, expr->data.isop.datasize);
             } else {
                 overflow = subovfw(expr->datatype, expr->data.isop.op1->data.isconst.number.intval, expr->data.isop.datasize);
             }
@@ -140,7 +138,7 @@ bool unaryovfw(struct Expression *expr) {
 
         case Uinc:
             if (expr->data.isop.op1->type == islda) {
-                overflow = addovfw(expr->datatype, expr->data.isop.op1->data.islda_isilda.offset, expr->data.isop.datasize);
+                overflow = addovfw(expr->datatype, expr->data.isop.op1->data.islda_isilda.addr, expr->data.isop.datasize);
             } else {
                 overflow = addovfw(expr->datatype, expr->data.isop.op1->data.isconst.number.intval, expr->data.isop.datasize);
             }
@@ -167,7 +165,7 @@ bool unaryovfw(struct Expression *expr) {
 }
 
 /* 
-0041550C find_replacements
+0041550C func_0041550C
 0044FF6C mergeconst
 004510A0 distrlaw
 00451764 restructure
@@ -181,15 +179,15 @@ void binaryfold(Uopcode opc, Datatype dtype, struct Expression *left, struct Exp
     if (left->type == islda && right->type == islda) {
         dtype = Jdt;
         lda = false;
-        rightval = right->data.islda_isilda.offset;
-        leftval = left->data.islda_isilda.offset;
+        rightval = right->data.islda_isilda.addr;
+        leftval = left->data.islda_isilda.addr;
     } else if (left->type == islda) {
         lda = true;
         rightval = right->data.isconst.number.intval;
-        leftval = left->data.islda_isilda.offset;
+        leftval = left->data.islda_isilda.addr;
     } else if (right->type == islda) {
         lda = true;
-        rightval = right->data.islda_isilda.offset;
+        rightval = right->data.islda_isilda.addr;
         leftval = left->data.isconst.number.intval;
     } else {
         lda = false;
@@ -219,7 +217,7 @@ void binaryfold(Uopcode opc, Datatype dtype, struct Expression *left, struct Exp
             if (dtype == Idt || dtype == Jdt) value = leftval % rightval;
             else value = (unsigned)leftval % (unsigned)rightval;
             
-            if ((value ^ rightval) < 0) {
+            if (value ^ rightval < 0) {
                 value += rightval;
             }
             break;
@@ -322,16 +320,16 @@ void binaryfold(Uopcode opc, Datatype dtype, struct Expression *left, struct Exp
     if (lda) {
         if (left->type == islda) {
             copycoderep(dest, left);
-            dest->data.islda_isilda.offset = value;
+            dest->data.islda_isilda.addr = value;
         } else {
             copycoderep(dest, right);
-            dest->data.islda_isilda.offset = value;
+            dest->data.islda_isilda.addr = value;
         }
     } else {
         dest->type = isconst;
         dest->data.isconst.size = sizeoftyp(dtype);
         dest->var_access_list = NULL;
-        dest->unk4 = 0;
+        dest->unk4 = false;
         dest->data.isconst.number.intval = value;
         dest->datatype = dtype;
     }
@@ -339,7 +337,7 @@ void binaryfold(Uopcode opc, Datatype dtype, struct Expression *left, struct Exp
 }
 
 /* 
-0041550C find_replacements
+0041550C func_0041550C
 0044FF6C mergeconst
 00451764 restructure
 */
@@ -348,7 +346,7 @@ void ixafold(struct Expression *ixa, struct Expression *left, struct Expression 
     int offset;
 
     if (left->type == islda) {
-        address = left->data.islda_isilda.offset;
+        address = left->data.islda_isilda.addr;
     } else {
         address = left->data.isconst.number.intval;
     }
@@ -359,7 +357,7 @@ void ixafold(struct Expression *ixa, struct Expression *left, struct Expression 
     }
 
     if (dest->type == islda) {
-        dest->data.islda_isilda.offset = address + offset;
+        dest->data.islda_isilda.addr = address + offset;
     } else {
         dest->data.isconst.number.intval = address + offset;
     }
@@ -367,157 +365,151 @@ void ixafold(struct Expression *ixa, struct Expression *left, struct Expression 
 }
 
 /* 
-0041550C find_replacements
+0041550C func_0041550C
 00451764 restructure
-
-change an ilod from a known address into a direct load
 */
 struct Expression *ilodfold(struct Expression *ilod) {
-    struct VariableLocation loc;
+    struct VariableInner var;
     unsigned short hash;
-    struct Expression *address;
-    struct Expression *var;
+    struct Expression *left;
+    struct Expression *expr;
     struct Expression *prev;
     bool found;
 
-    address = ilod->data.isop.op1;
-    loc = address->data.islda_isilda.address;
-    loc.addr = address->data.islda_isilda.offset + ilod->data.isop.datasize;
-    if (insertvar(loc, ilod->data.isop.aux2.v1.unk3C, ilod->datatype, &curproc->vartree, 1, 0, 0)->veqv) {
+    left = ilod->data.isop.op1;
+    var = left->data.islda_isilda.var_data;
+    var.addr = left->data.islda_isilda.addr + ilod->data.isop.datasize;
+    if (insertvar(var, ilod->data.isop.aux2.v1.unk3C, ilod->datatype, &curproc->vartree, 1, 0, 0)->unk1 != 0) {
         return ilod;
     }
-    hash = isvarhash(loc);
-    var = table[hash];
+    hash = isvarhash(var);
+    expr = table[hash];
     found = false;
     prev = NULL;
-    while (!found && var != 0) {
-        if (var->type == isvar && addreq(var->data.isvar_issvar.location, loc)) {
-            found = ilod->graphnode == var->graphnode &&
-                ilod->killed == var->killed &&
-                ilod->initialVal == var->initialVal &&
-                (var->data.isvar_issvar.copy == NULL || var->data.isvar_issvar.copy == nocopy);
+    while (!found && expr != 0) {
+        if (expr->type == isvar && addreq(expr->data.isvar_issvar.var_data, var)) {
+            found = ilod->graphnode == expr->graphnode &&
+                ilod->unk2 == expr->unk2 &&
+                ilod->unk3 == expr->unk3 &&
+                (expr->data.isvar_issvar.unk30 == NULL || nocopy == expr->data.isvar_issvar.unk30);
 
-            prev = var;
-            if (found && var->killed && !var->initialVal) {
+            prev = expr;
+            if (found && expr->unk2 && !expr->unk3) {
                 found = false;
             }
         }
 
         if (!found) {
-            var = var->next;
+            expr = expr->next;
         }
     }
 
     if (!found) {
-        var = appendchain(hash);
+        expr = appendchain(hash);
         if (outofmem != 0) {
             return NULL;
         }
         if (!inlopt && prev != NULL) {
-            copycoderep(var, prev);
+            copycoderep(expr, prev);
         } else {
-            var->type = isvar;
-            var->datatype = ilod->datatype;
-            var->unk4 = 0;
-            var->visited = 0;
-            var->data.isvar_issvar.veqv = false;
-            var->data.isvar_issvar.vreg = false;
-            var->data.isvar_issvar.location = loc;
-            var->data.isvar_issvar.outer_stack = NULL;
-            var->data.isvar_issvar.size = ilod->data.isop.aux2.v1.unk3C;
-            var->data.isvar_issvar.location.level = blktolev(loc.blockno);
-            var->data.isvar_issvar.temploc = 0;
-            var->data.isvar_issvar.is_volatile = false;
+            expr->type = isvar;
+            expr->datatype = ilod->datatype;
+            expr->unk4 = false;
+            expr->unk5 = false;
+            expr->data.isvar_issvar.unk21 = false;
+            expr->data.isvar_issvar.unk22 = false;
+            expr->data.isvar_issvar.var_data = var;
+            expr->data.isvar_issvar.unk24 = NULL;
+            expr->data.isvar_issvar.size = ilod->data.isop.aux2.v1.unk3C;
+            expr->data.isvar_issvar.var_data.level = blktolev(var.blockno);
+            expr->data.isvar_issvar.unk3C = 0;
+            expr->data.isvar_issvar.is_volatile = false;
         }
-        var->count = 1;
-        var->data.isvar_issvar.copy = NULL;
-        var->data.isvar_issvar.assignment = NULL;
-        var->data.isvar_issvar.assigned_value = NULL;
-        var->graphnode = ilod->graphnode;
-        var->initialVal = ilod->initialVal;
-        var->killed = ilod->killed;
+        expr->count = 1;
+        expr->data.isvar_issvar.unk30 = NULL;
+        expr->data.isvar_issvar.assignment = NULL;
+        expr->data.isvar_issvar.assigned_value = NULL;
+        expr->graphnode = ilod->graphnode;
+        expr->unk3 = ilod->unk3;
+        expr->unk2 = ilod->unk2;
     } else {
-        increasecount(var);
+        increasecount(expr);
     }
 
-    if (!found || var->var_access_list == NULL) {
-        var->var_access_list = alloc_new(sizeof(struct VarAccessList), &perm_heap);
-        var->var_access_list->prev = ilod->var_access_list->prev;
-        if (var->var_access_list->prev != NULL) {
-            var->var_access_list->prev->next = var->var_access_list;
+    if (!found || expr->var_access_list == NULL) {
+        expr->var_access_list = alloc_new(sizeof(struct VarAccessList), &perm_heap);
+        expr->var_access_list->prev = ilod->var_access_list->prev;
+        if (expr->var_access_list->prev != 0) {
+            expr->var_access_list->prev->next = expr->var_access_list;
         } else {
-            var->graphnode->varlisthead = var->var_access_list;
+            expr->graphnode->varlisthead = expr->var_access_list;
         }
-        var->var_access_list->next = ilod->var_access_list;
-        ilod->var_access_list->prev = var->var_access_list;
-        var->var_access_list->unk8 = false;
-        var->var_access_list->type = 2;
-        var->var_access_list->data.var = var;
+        expr->var_access_list->next = ilod->var_access_list;
+        ilod->var_access_list->prev = expr->var_access_list;
+        expr->var_access_list->unk8 = false;
+        expr->var_access_list->type = 2;
+        expr->var_access_list->data.var = expr;
     }
     decreasecount(ilod);
-    return var;
+    return expr;
 }
 
 /* 
 004175BC copypropagate
 00452DAC constarith
-
-change an istr to a known address into a direct store
 */
 void istrfold(struct Statement *stmt) {
-    struct VariableLocation loc;
-    struct Expression *var;
+    struct VariableInner var;
+    struct Expression *expr;
     int increment;
-    struct Expression *address;
+    struct Expression *istr;
 
-    address = stmt->expr;
-    loc = address->data.islda_isilda.address;
-    loc.addr = address->data.islda_isilda.offset + stmt->u.store.u.istr.offset;
-    if (insertvar(loc, stmt->u.store.size, stmt->u.store.u.istr.dtype, &curproc->vartree, 0, 0, 0)->veqv) {
-        return;
+    istr = stmt->expr;
+    var = istr->data.islda_isilda.var_data;
+    var.addr = istr->data.islda_isilda.addr + stmt->u.store.u.istr.s.word;
+    if (insertvar(var, stmt->u.store.size, stmt->u.store.u.istr.dtype, &curproc->vartree, 0, 0, 0)->unk1 == 0) {
+        expr = appendchain(isvarhash(var));
+        if (outofmem) {
+            return;
+        }
+        expr->type = isvar;
+        expr->datatype = stmt->u.store.u.istr.dtype;
+        expr->unk2 = !stmt->u.store.unk1F;
+        expr->unk3 = false;
+        expr->unk4 = false;
+        expr->unk5 = false;
+        expr->count = 0;
+        expr->graphnode = stmt->graphnode;
+        expr->var_access_list = NULL;
+
+        expr->data.isvar_issvar.size = stmt->u.store.size;
+        expr->data.isvar_issvar.unk21 = false;
+        expr->data.isvar_issvar.unk22 = false;
+        expr->data.isvar_issvar.is_volatile = false;
+        expr->data.isvar_issvar.unk24 = NULL;
+        expr->data.isvar_issvar.var_data = var;
+        expr->data.isvar_issvar.var_data.level = blktolev(var.blockno);
+        expr->data.isvar_issvar.unk30 = NULL;
+        expr->data.isvar_issvar.assigned_value = stmt->u.store.expr;
+        expr->data.isvar_issvar.assignment = stmt;
+        expr->data.isvar_issvar.unk3C = 0;
+
+        stmt->opc = Ustr;
+        stmt->unk1 = false;
+        stmt->expr = expr;
+        if (checkincre(expr->data.isvar_issvar.assigned_value, expr, &increment) && increment == 1) {
+            stmt->unk1 = true;
+        }
+        stmt->unk2 = false;
+        stmt->unk3 = false;
+        stmt->u.store.var_access_list_item->unk8 = NULL;
+        stmt->u.store.u.str.unk2C = 0;
+        stmt->u.store.u.str.unk30 = 0;
     }
-
-    var = appendchain(isvarhash(loc));
-    if (outofmem) {
-        return;
-    }
-    var->type = isvar;
-    var->datatype = stmt->u.store.u.istr.dtype;
-    var->killed = !stmt->u.store.store_av;
-    var->initialVal = false;
-    var->unk4 = 0;
-    var->visited = 0;
-    var->count = 0;
-    var->graphnode = stmt->graphnode;
-    var->var_access_list = NULL;
-
-    var->data.isvar_issvar.size = stmt->u.store.size;
-    var->data.isvar_issvar.veqv = false;
-    var->data.isvar_issvar.vreg = false;
-    var->data.isvar_issvar.is_volatile = false;
-    var->data.isvar_issvar.outer_stack = NULL;
-    var->data.isvar_issvar.location = loc;
-    var->data.isvar_issvar.location.level = blktolev(loc.blockno);
-    var->data.isvar_issvar.copy = NULL;
-    var->data.isvar_issvar.assigned_value = stmt->u.store.expr;
-    var->data.isvar_issvar.assignment = stmt;
-    var->data.isvar_issvar.temploc = 0;
-
-    stmt->opc = Ustr;
-    stmt->is_increment = false;
-    stmt->expr = var;
-    if (checkincre(var->data.isvar_issvar.assigned_value, var, &increment) && increment == 1) {
-        stmt->is_increment = true;
-    }
-    stmt->suppressed_iv = false;
-    stmt->outpar = false;
-    stmt->u.store.var_access_list_item->unk8 = false;
-    stmt->u.store.u.str.srcands = NULL;
-    stmt->u.store.u.str.recurs = NULL;
 }
 
 /* 
-0041550C find_replacements
+0041550C func_0041550C
 00451764 restructure
 */
 void cvtfold(struct Expression *cvt) {
@@ -528,8 +520,8 @@ void cvtfold(struct Expression *cvt) {
 }
 
 /* 
-004150E4 add_cvtl
-0041550C find_replacements
+004150E4 func_004150E4
+0041550C func_0041550C
 00451764 restructure
 */
 void unaryfold(struct Expression *expr) { //! wtf
@@ -626,7 +618,7 @@ void unaryfold(struct Expression *expr) { //! wtf
 
     if (phi_a1->type == islda && expr->data.isop.opc != Ulnot) {
         copycoderep(expr, phi_a1);
-        expr->data.islda_isilda.offset = result;
+        expr->data.islda_isilda.addr = result;
     } else {
         expr->type = isconst;
         if (phi_a1->type == islda) {
@@ -695,7 +687,7 @@ void linearize(struct Expression *expr) {
     right->data.isop.op2 = right->data.isop.op1;
     right->data.isop.op1 = expr->data.isop.op1;
     expr->data.isop.op1 = right;
-    right->visited = 0;
+    right->unk5 = false;
 
     switch (expr->data.isop.opc) {
         case Usub:
@@ -902,7 +894,7 @@ void mergeconst(struct Expression *expr) {
         done = false;
         overflow = false;
         while (!done && !overflow) {
-            if (left->data.isop.opc != Udec && left->data.isop.opc != Uinc) {
+            if (left->data.isop.opc != Udec || left->data.isop.opc != Uinc) {
                 constant = left->data.isop.op2;
                 if (constant != NULL && constant->type == isconst) {
                     if (expr->data.isop.opc == Uixa) {
@@ -913,7 +905,7 @@ void mergeconst(struct Expression *expr) {
                                 } else if (mpyovfw(expr->datatype, expr->data.isop.op2->data.isconst.number.intval, expr->data.isop.datasize)) {
                                     overflow = true;
                                 } else {
-                                    overflow = addovfw(Adt, constant->data.isconst.number.intval * left->data.isop.datasize, expr->data.isop.op2->data.isconst.number.intval * expr->data.isop.datasize);
+                                    overflow = addovfw(false, constant->data.isconst.number.intval * left->data.isop.datasize, expr->data.isop.op2->data.isconst.number.intval * expr->data.isop.datasize);
                                 }
                                 break;
 
@@ -1206,12 +1198,12 @@ void mergeconst(struct Expression *expr) {
                         overflow = binaryovfw(expr->datatype, expr->data.isop.opc, left->data.isop.op1, expr->data.isop.op2);
                     } else if (expr->data.isop.opc == Udec) {
                         if (left->data.isop.op1->type == islda) {
-                            overflow = subovfw(Adt, left->data.isop.op1->data.islda_isilda.offset, expr->data.isop.datasize);
+                            overflow = subovfw(Adt, left->data.isop.op1->data.islda_isilda.addr, expr->data.isop.datasize);
                         } else {
                             overflow = subovfw(expr->datatype, left->data.isop.op1->data.isconst.number.intval, expr->data.isop.datasize);
                         }
                     } else if (left->data.isop.op1->type == islda) {
-                        overflow = addovfw(Adt, left->data.isop.op1->data.islda_isilda.offset, expr->data.isop.datasize);
+                        overflow = addovfw(Adt, left->data.isop.op1->data.islda_isilda.addr, expr->data.isop.datasize);
                     } else {
                         overflow = addovfw(expr->datatype, left->data.isop.op1->data.isconst.number.intval, expr->data.isop.datasize);
                     }
@@ -1231,13 +1223,13 @@ void mergeconst(struct Expression *expr) {
                             newExpr->ichain = NULL;
                             if (expr->data.isop.opc == Udec) {
                                 if (newExpr->type == islda) {
-                                    newExpr->data.islda_isilda.offset -= expr->data.isop.datasize;
+                                    newExpr->data.islda_isilda.addr -= expr->data.isop.datasize;
                                 } else {
                                     newExpr->data.isconst.number.intval -= expr->data.isop.datasize;
                                 }
                             } else {
                                 if (newExpr->type == islda) {
-                                    newExpr->data.islda_isilda.offset += expr->data.isop.datasize;
+                                    newExpr->data.islda_isilda.addr += expr->data.isop.datasize;
                                 } else {
                                     newExpr->data.isconst.number.intval += expr->data.isop.datasize;
                                 }
@@ -1406,6 +1398,7 @@ bool restructure(Uopcode opc, struct Expression **expr) {
     bool leftResult; // op1
     bool rightResult; // op2
     struct Expression *sp4C;
+    struct Expression *left;
     struct Expression *right;
     struct Expression *expr2;
     struct Expression *expr_s0;
@@ -1440,7 +1433,7 @@ bool restructure(Uopcode opc, struct Expression **expr) {
 
         case isop:
             result = false;
-            if (expr_s0->visited == 1) {
+            if (expr_s0->unk5 == 1) {
                 return false;
             }
 
@@ -1769,7 +1762,7 @@ bool restructure(Uopcode opc, struct Expression **expr) {
 
                     if (leftResult && rightResult && (expr_s0->data.isop.opc != Udif && expr_s0->data.isop.opc != Uinn && expr_s0->data.isop.opc != Umus)) {
                         if (expr_s0->data.isop.op1->type == islda && expr_s0->data.isop.op2->type == islda
-                                && expr_s0->data.isop.op2->data.islda_isilda.address.blockno != expr_s0->data.isop.op1->data.islda_isilda.address.blockno) {
+                                && expr_s0->data.isop.op2->data.islda_isilda.var_data.blockno != expr_s0->data.isop.op1->data.islda_isilda.var_data.blockno) {
                             result = false;
                         } else if (binaryovfw(expr_s0->datatype, expr_s0->data.isop.opc, expr_s0->data.isop.op1, expr_s0->data.isop.op2)) {
                             result = false;
@@ -1790,7 +1783,7 @@ bool restructure(Uopcode opc, struct Expression **expr) {
                     result = false;
                     if (restructure(Unop, &expr_s0->data.isop.op1)) {
                         if (expr_s0->data.isop.opc == Uilod && expr_s0->data.isop.op1->type == islda) {
-                            if (expr_s0->data.isop.op1->data.islda_isilda.address.memtype != Smt || is_gp_relative(expr_s0->data.isop.op1->data.islda_isilda.address.blockno) || !dokpicopt) {
+                            if (expr_s0->data.isop.op1->data.islda_isilda.var_data.memtype != Smt || is_gp_relative(expr_s0->data.isop.op1->data.islda_isilda.var_data.blockno) || !dokpicopt) {
                                 *expr = ilodfold(*expr);
                                 return false;
                             }
@@ -1930,7 +1923,7 @@ bool restructure(Uopcode opc, struct Expression **expr) {
             }
 
             if (expr_s0->type == isop) {
-                expr_s0->visited = 1;
+                expr_s0->unk5 = true;
             }
             break;
 
@@ -1944,7 +1937,7 @@ bool restructure(Uopcode opc, struct Expression **expr) {
 }
 
 /* 
-00456310 one_block
+00456310 func_00456310
 */
 void constarith(void) {
     int oldpage = curlocpg;
@@ -1975,7 +1968,7 @@ void constarith(void) {
                             reduceixa(stmt->u.store.expr);
                         }
                     }
-                    if (stmt->opc == Uistr && stmt->expr->type == islda && (stmt->expr->data.islda_isilda.address.memtype != Smt || is_gp_relative(stmt->expr->data.islda_isilda.address.blockno) || !dokpicopt)) {
+                    if (stmt->opc == Uistr && stmt->expr->type == islda && (stmt->expr->data.islda_isilda.var_data.memtype != Smt || is_gp_relative(stmt->expr->data.islda_isilda.var_data.blockno) || !dokpicopt)) {
                         istrfold(stmt);
                     }
                     
@@ -2013,8 +2006,7 @@ void constarith(void) {
             case Utjp:
                 if (restructure(Unop, &stmt->expr)) {
                     if (stmt->expr->type == isconst) {
-                        if ((stmt->opc == Ufjp && stmt->expr->data.isconst.number.intval != false) ||
-                            (stmt->opc == Utjp && stmt->expr->data.isconst.number.intval == false)) {
+                        if ((stmt->opc == Ufjp && stmt->expr->data.isconst.number.intval != false) || (stmt->opc == Utjp && stmt->expr->data.isconst.number.intval == false)) {
                             stmt->opc = Unop;
                             curgraphnode->successors->graphnode->predecessors = curgraphnode->successors->graphnode->predecessors->next;
                             curgraphnode->successors = curgraphnode->successors->next;
@@ -2039,7 +2031,7 @@ void constarith(void) {
             case Utplt:
             case Utpne:
                 if (restructure(Unop, &stmt->expr) && restructure(Unop, &stmt->u.trap.expr2)) {
-                    bool outofbounds = false;
+                    bool outofbounds;
 
                     if (stmt->u.trap.dtype == Qdt || stmt->u.trap.dtype == Rdt || stmt->u.trap.dtype == Sdt) {
                         break;

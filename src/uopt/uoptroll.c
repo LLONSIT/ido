@@ -5,8 +5,31 @@
 #include "uoptkill.h"
 #include "uoptinput.h"
 #include "uoptcontrolflow.h"
-#include "uoptppss.h"
-#include "uoptroll.h"
+
+__asm__(R""(
+.macro glabel label
+    .global \label
+    .balign 4
+    \label:
+.endm
+
+.rdata
+RO_1000DBC9:
+    # 004736E0 func_004736E0
+    .asciz "uoptroll.p"
+
+    .balign 4
+jtbl_1000DBD4:
+    # 004736E0 func_004736E0
+    .gpword .L0047376C
+    .gpword .L00473790
+    .gpword .L00473798
+
+.set noat      # allow manual use of $at
+.set noreorder # don't insert nops after branches
+
+.text
+)"");
 
 struct IChain *i_var_inx;
 struct Statement *incr_stat;
@@ -48,7 +71,7 @@ struct Expression *change_to_const_eq(bool loopIfTrue, struct Expression *loopCo
             sp30 = loopCond->data.isop.op2->data.isconst.number.intval + rem;
             condOp2 = enter_const(sp30, loopCond->datatype, node);
         } else {
-            sp30 = loopCond->data.isop.op2->data.islda_isilda.offset + rem;
+            sp30 = loopCond->data.isop.op2->data.islda_isilda.addr + rem;
             condOp2 = enter_lda(sp30, loopCond->data.isop.op2, node);
         }
     }
@@ -77,8 +100,8 @@ struct Expression *change_to_const_eq(bool loopIfTrue, struct Expression *loopCo
         constEq->data.isop.op2 = condOp2;
         constEq->data.isop.op1 = loopCond->data.isop.op1;
         constEq->count = 1;
-        constEq->data.isop.temploc = 0;
-        constEq->visited = 0;
+        constEq->data.isop.unk30 = 0;
+        constEq->unk5 = 0;
         constEq->unk4 = 0;
         constEq->graphnode = node;
 
@@ -88,8 +111,8 @@ struct Expression *change_to_const_eq(bool loopIfTrue, struct Expression *loopCo
         constEq->data.isop.aux = loopCond->data.isop.aux;
         constEq->data.isop.aux2 = loopCond->data.isop.aux2;
 
-        constEq->data.isop.available = loopCond->data.isop.available;
-        constEq->data.isop.anticipated = loopCond->data.isop.anticipated;
+        constEq->data.isop.unk22 = loopCond->data.isop.unk22;
+        constEq->data.isop.unk21 = loopCond->data.isop.unk21;
     } else {
         increasecount(constEq);
     }
@@ -100,19 +123,19 @@ struct Expression *change_to_const_eq(bool loopIfTrue, struct Expression *loopCo
         if (condOp2->type == isconst) {
             op2Hash = isconstihash(sp30);
         } else {
-            op2Hash = isldaihash(condOp2->data.islda_isilda.address, sp30);
+            op2Hash = isldaihash(condOp2->data.islda_isilda.var_data, sp30);
         }
         op2ichain = isearchloop(op2Hash, condOp2, NULL, NULL);
     }
 
     eqIchain = isearchloop(isopihash(condOpc, loopCond->ichain->isop.op1, op2ichain), constEq, loopCond->ichain->isop.op1, op2ichain);
-    if (constEq->data.isop.anticipated) {
+    if (constEq->data.isop.unk21) {
         setbit(&node->bvs.stage1.antlocs, eqIchain->bitpos);
     }
-    if (constEq->data.isop.available) {
+    if (constEq->data.isop.unk22) {
         setbit(&node->bvs.stage1.avlocs, eqIchain->bitpos);
     }
-    if (!constEq->data.isop.anticipated || constEq->data.isop.available) {
+    if (!constEq->data.isop.unk21 || constEq->data.isop.unk22) {
         setbit(&node->bvs.stage1.alters, eqIchain->bitpos);
     }
     setbit(&node->bvs.stage1.u.precm.expoccur, eqIchain->bitpos);
@@ -127,7 +150,7 @@ struct Expression *change_to_var_eq(bool loop_if_true, bool inc_var_op1, struct 
     struct Expression *sp78;
     bool found;
     struct IChain *sp58;
-    Uopcode condOpc;
+    Uopcode sp57;
     bool sp56;
     bool sp55;
     bool sp54;
@@ -141,9 +164,9 @@ struct Expression *change_to_var_eq(bool loop_if_true, bool inc_var_op1, struct 
     struct IChain *phi_s3_2;
 
     if (loop_if_true == 0) {
-        condOpc = Uequ;
+        sp57 = Uequ;
     } else {
-        condOpc = Uneq;
+        sp57 = Uneq;
     }
     if (inc_var_op1) {
         phi_s3 = loopCond->data.isop.op2;
@@ -152,7 +175,7 @@ struct Expression *change_to_var_eq(bool loop_if_true, bool inc_var_op1, struct 
     }
     phi_s3->count++;
 
-    found = false;
+    found = 0;
 
     if ((loopCond->data.isop.opc == Ules && loop_if_true != 0) || (loopCond->data.isop.opc == Ugeq && loop_if_true == 0)) {
         phi_s1 = phi_s3;
@@ -190,12 +213,12 @@ struct Expression *change_to_var_eq(bool loop_if_true, bool inc_var_op1, struct 
             phi_s1->data.isop.op2 = sp78;
             phi_s1->count = 1;
             phi_s1->data.isop.aux2.v1.overflow_attr = 0;
-            phi_s1->data.isop.temploc = 0;
-            phi_s1->visited = 0;
+            phi_s1->data.isop.unk30 = 0;
+            phi_s1->unk5 = 0;
             phi_s1->unk4 = 0;
             phi_s1->graphnode = body;
-            phi_s1->data.isop.anticipated = phi_s3->initialVal;
-            phi_s1->data.isop.available = phi_s3->killed == 0;
+            phi_s1->data.isop.unk21 = phi_s3->unk3;
+            phi_s1->data.isop.unk22 = phi_s3->unk2 == 0;
         } else {
             increasecount(phi_s1);
         }
@@ -203,12 +226,12 @@ struct Expression *change_to_var_eq(bool loop_if_true, bool inc_var_op1, struct 
 
     if (inc_var_op1) {
         loopCond->data.isop.op1->count++;
-        hash = isophash(condOpc, loopCond->data.isop.op1, phi_s1);
+        hash = isophash(sp57, loopCond->data.isop.op1, phi_s1);
         phi_s0 = table[hash];
 
         //! The asm doesn't check found here, even though it could have been set
         while (phi_s0 != 0) {
-            if (phi_s0->type == isop && condOpc == phi_s0->data.isop.opc && loopCond->datatype == phi_s0->datatype
+            if (phi_s0->type == isop && sp57 == phi_s0->data.isop.opc && loopCond->datatype == phi_s0->datatype
                     && phi_s0->data.isop.op1 == loopCond->data.isop.op1
                     && phi_s1 == phi_s0->data.isop.op2) {
                 found = 1;
@@ -222,12 +245,12 @@ struct Expression *change_to_var_eq(bool loop_if_true, bool inc_var_op1, struct 
         }
     } else {
         loopCond->data.isop.op2->count++;
-        hash = isophash(condOpc, phi_s1, loopCond->data.isop.op2);
+        hash = isophash(sp57, phi_s1, loopCond->data.isop.op2);
         phi_s0 = table[hash];
 
         //! The asm doesn't check found here, even though it could have been set
         while (phi_s0 != 0) {
-            if (phi_s0->type == isop && condOpc == phi_s0->data.isop.opc && loopCond->datatype == phi_s0->datatype
+            if (phi_s0->type == isop && sp57 == phi_s0->data.isop.opc && loopCond->datatype == phi_s0->datatype
                     && phi_s1 == phi_s0->data.isop.op1
                     && phi_s0->data.isop.op2 == loopCond->data.isop.op2) {
                 found = true;
@@ -240,10 +263,10 @@ struct Expression *change_to_var_eq(bool loop_if_true, bool inc_var_op1, struct 
         }
     }
 
-    if (!found) {
+    if (found == 0) {
         sp48 = appendchain(hash);
         sp48->type = isop;
-        sp48->data.isop.opc = condOpc;
+        sp48->data.isop.opc = sp57;
         sp48->datatype = loopCond->datatype;
         sp48->data.isop.datatype = loopCond->data.isop.datatype;
         if (inc_var_op1) {
@@ -256,8 +279,8 @@ struct Expression *change_to_var_eq(bool loop_if_true, bool inc_var_op1, struct 
 
         sp48->data.isop.aux2.v1.overflow_attr = 0;
         sp48->count = 1;
-        sp48->data.isop.temploc = 0;
-        sp48->visited = 0;
+        sp48->data.isop.unk30 = 0;
+        sp48->unk5 = 0;
         sp48->unk4 = 0;
         sp48->data.isop.aux.unk38_trep = NULL;
         sp48->data.isop.aux2.unk3C_trep = NULL;
@@ -278,8 +301,8 @@ struct Expression *change_to_var_eq(bool loop_if_true, bool inc_var_op1, struct 
             resetbit(&body->bvs.stage1.avlocs, loopCond->data.isop.aux2.unk3C_trep->ichain->bitpos);
         }
 
-        sp48->data.isop.available = loopCond->data.isop.available;
-        sp48->data.isop.anticipated = loopCond->data.isop.anticipated;
+        sp48->data.isop.unk22 = loopCond->data.isop.unk22;
+        sp48->data.isop.unk21 = loopCond->data.isop.unk21;
         phi_s0 = sp48;
     } else {
         increasecount(phi_s0);
@@ -291,37 +314,37 @@ struct Expression *change_to_var_eq(bool loop_if_true, bool inc_var_op1, struct 
     } else {
         sp58 = isearchloop(isconstihash(incre), sp78, NULL, NULL);
         phi_s3_2 = isearchloop(isopihash(Uadd, phi_s3->ichain, sp58), phi_s1, phi_s3->ichain, sp58);
-        if (phi_s1->data.isop.anticipated) {
+        if (phi_s1->data.isop.unk21) {
             setbit(&body->bvs.stage1.antlocs, phi_s3_2->bitpos);
         }
-        if (phi_s1->data.isop.available) {
+        if (phi_s1->data.isop.unk22) {
             setbit(&body->bvs.stage1.avlocs, phi_s3_2->bitpos);
         }
-        if (!phi_s1->data.isop.anticipated || phi_s1->data.isop.available) {
+        if ((phi_s1->data.isop.unk21 == 0) || (phi_s1->data.isop.unk22)) {
             setbit(&body->bvs.stage1.alters, phi_s3_2->bitpos);
         }
         setbit(&body->bvs.stage1.u.precm.expoccur, phi_s3_2->bitpos);
     }
 
     if (inc_var_op1) {
-        temp_s1_2 = isearchloop(isopihash(condOpc, loopCond->ichain->isop.op1, phi_s3_2), phi_s0, loopCond->ichain->isop.op1, phi_s3_2);
+        temp_s1_2 = isearchloop(isopihash(sp57, loopCond->ichain->isop.op1, phi_s3_2), phi_s0, loopCond->ichain->isop.op1, phi_s3_2);
     } else {
-        temp_s1_2 = isearchloop(isopihash(condOpc, phi_s3_2, loopCond->ichain->isop.op2), phi_s0, phi_s3_2, loopCond->ichain->isop.op2);
+        temp_s1_2 = isearchloop(isopihash(sp57, phi_s3_2, loopCond->ichain->isop.op2), phi_s0, phi_s3_2, loopCond->ichain->isop.op2);
     }
 
-    if (phi_s0->data.isop.anticipated) {
+    if (phi_s0->data.isop.unk21) {
         setbit(&body->bvs.stage1.antlocs, temp_s1_2->bitpos);
     }
-    if (phi_s0->data.isop.available) {
+    if (phi_s0->data.isop.unk22) {
         setbit(&body->bvs.stage1.avlocs, temp_s1_2->bitpos);
     }
-    if (!phi_s0->data.isop.anticipated || phi_s0->data.isop.available) {
+    if ((phi_s0->data.isop.unk21 == 0) || (phi_s0->data.isop.unk22)) {
         setbit(&body->bvs.stage1.alters, temp_s1_2->bitpos);
     }
 
     setbit(&body->bvs.stage1.u.precm.expoccur, temp_s1_2->bitpos);
-    trep_image(phi_s0, true,  sp56, sp55, true);
-    trep_image(phi_s0, false, sp54, sp53, true);
+    trep_image(phi_s0, 1, sp56, sp55, 1);
+    trep_image(phi_s0, 0, sp54, sp53, 1);
     return phi_s0;
 }
 
@@ -330,11 +353,11 @@ struct Expression *change_to_var_eq(bool loop_if_true, bool inc_var_op1, struct 
 */
 void del_orig_cond(struct Expression *loopCond, struct Graphnode *body) {
     if (loopCond->count == 1) {
-        if (loopCond->data.isop.anticipated) {
+        if (loopCond->data.isop.unk21) {
             resetbit(&body->bvs.stage1.antlocs, loopCond->ichain->bitpos);
         }
 
-        if (loopCond->data.isop.available) {
+        if (loopCond->data.isop.unk22) {
             resetbit(&body->bvs.stage1.avlocs, loopCond->ichain->bitpos);
         }
         checkexpoccur(loopCond->ichain, body);
@@ -350,26 +373,26 @@ struct Expression *unroll_searchloop(unsigned short tableIdx, struct Expression 
     bool sp33; // t0
     bool sp32; // t1, killed?
     bool sp31;
-    bool veqv;
+    bool sp30;
     struct Expression *phi_s0;
 
     phi_s0 = table[tableIdx];
     sp31 = false;
-    veqv = false;
+    sp30 = false;
     if (expr->datatype == Sdt && expr->type != isconst) {
         if (expr->type != isvar && expr->type != issvar) {
             phi_s0 = NULL;
         } else if (int_reg_size < expr->data.isvar_issvar.size) {
-            veqv = true;
+            sp30 = true;
         }
     }
 
     sp33 = false;
     sp32 = false;
-    while (!sp33 && !veqv && phi_s0 != NULL) {
+    while (sp33 == 0 && sp30 == 0 && phi_s0 != 0) {
         if (phi_s0->type == isop || phi_s0->type == isilda) {
             if (curgraphnode != phi_s0->graphnode) {
-                goto next;
+                goto block_137;
             }
         }
 
@@ -377,23 +400,23 @@ struct Expression *unroll_searchloop(unsigned short tableIdx, struct Expression 
         switch (expr->type) {
             case isilda:
                 if (phi_s0->type == isilda
-                        && expr->data.islda_isilda.offset == phi_s0->data.islda_isilda.offset
+                        && expr->data.islda_isilda.addr == phi_s0->data.islda_isilda.addr
                         && expr->data.islda_isilda.size == phi_s0->data.islda_isilda.size
-                        && addreq(phi_s0->data.islda_isilda.address, expr->data.islda_isilda.address)) {
+                        && addreq(phi_s0->data.islda_isilda.var_data, expr->data.islda_isilda.var_data)) {
                     sp33 = true;
                 }
                 break;
 
             case isvar:
             case issvar:
-                if (phi_s0->type == expr->type && addreq(phi_s0->data.isvar_issvar.location, expr->data.isvar_issvar.location)) {
-                    if (phi_s0->data.isvar_issvar.veqv) {
-                        veqv = true;
+                if (phi_s0->type == expr->type && addreq(phi_s0->data.isvar_issvar.var_data, expr->data.isvar_issvar.var_data)) {
+                    if (phi_s0->data.isvar_issvar.unk21) {
+                        sp30 = true;
                         break;
                     }
 
-                    sp33 = curgraphnode == phi_s0->graphnode && !phi_s0->killed;
-                    if (phi_s0->data.isvar_issvar.vreg) {
+                    sp33 = curgraphnode == phi_s0->graphnode && !phi_s0->unk2;
+                    if (phi_s0->data.isvar_issvar.unk22 != 0) {
                         sp31 = true;
                     }
                     if (!sp33) {
@@ -555,7 +578,7 @@ struct Expression *unroll_searchloop(unsigned short tableIdx, struct Expression 
                                 && arg3 == phi_s0->data.isop.op1
                                 && expr->data.isop.datasize == phi_s0->data.isop.datasize
                                 && expr->data.isop.aux2.v1.unk3C == phi_s0->data.isop.aux2.v1.unk3C) {
-                            sp33 = !phi_s0->killed;
+                            sp33 = !phi_s0->unk2;
                             if (sp33 == 0) {
                                 sp32 = true;
                             }
@@ -574,7 +597,7 @@ struct Expression *unroll_searchloop(unsigned short tableIdx, struct Expression 
                         if ((arg3 == phi_s0->data.isop.op1 && arg4 == phi_s0->data.isop.op2) ||
                             (arg4 == phi_s0->data.isop.op1 && arg3 == phi_s0->data.isop.op2)) {
                             if (expr->data.isop.datasize == phi_s0->data.isop.datasize) {
-                                sp33 = !phi_s0->killed;
+                                sp33 = !phi_s0->unk2;
                                 if (!sp33) {
                                     sp32 = true;
                                 }
@@ -589,7 +612,7 @@ struct Expression *unroll_searchloop(unsigned short tableIdx, struct Expression 
                         if (arg3 == phi_s0->data.isop.op1
                                 && arg4 == phi_s0->data.isop.op2
                                 && expr->data.isop.datasize == phi_s0->data.isop.datasize) {
-                            sp33 = !phi_s0->killed;
+                            sp33 = !phi_s0->unk2;
                             if (!sp33) {
                                 sp32 = true;
                             }
@@ -607,35 +630,41 @@ struct Expression *unroll_searchloop(unsigned short tableIdx, struct Expression 
                 break;
         }
 
-next:
+block_137:
         if (!sp33) {
             phi_s0 = phi_s0->next;
         }
     }
 
-    if (!sp33 || veqv) {
+    if (!sp33 || sp30) {
         phi_s0 = appendchain(tableIdx);
         phi_s0->graphnode = curgraphnode;
         if (expr->type == isvar || expr->type == issvar) {
-            phi_s0->data.isvar_issvar.veqv = veqv;
-            phi_s0->data.isvar_issvar.vreg = !veqv && sp31;
+            phi_s0->data.isvar_issvar.unk21 = sp30;
+            if (!sp30) {
+                phi_s0->data.isvar_issvar.unk22 = sp31;
+            } else {
+                phi_s0->data.isvar_issvar.unk22 = 0;
+            }
         }
 
         if (sp32) {
-            phi_s0->initialVal = false;
-        } else if (expr->type == isvar || expr->type == issvar ||
-                (expr->type == isop &&
-                 (expr->data.isop.opc == Uiequ ||
-                  expr->data.isop.opc == Uigeq ||
-                  expr->data.isop.opc == Uigrt ||
-                  expr->data.isop.opc == Uileq ||
-                  expr->data.isop.opc == Uiles ||
-                  expr->data.isop.opc == Uineq ||
-                  expr->data.isop.opc == Uilod ||
-                  expr->data.isop.opc == Uildv ||
-                  expr->data.isop.opc == Uirld ||
-                  expr->data.isop.opc == Uirlv))) {
-            phi_s0->initialVal = true;
+            phi_s0->unk3 = false;
+        } else {
+            if (expr->type == isvar || expr->type == issvar ||
+                    (expr->type == isop &&
+                     (expr->data.isop.opc == Uiequ ||
+                      expr->data.isop.opc == Uigeq ||
+                      expr->data.isop.opc == Uigrt ||
+                      expr->data.isop.opc == Uileq ||
+                      expr->data.isop.opc == Uiles ||
+                      expr->data.isop.opc == Uineq ||
+                      expr->data.isop.opc == Uilod ||
+                      expr->data.isop.opc == Uildv ||
+                      expr->data.isop.opc == Uirld ||
+                      expr->data.isop.opc == Uirlv))) {
+                phi_s0->unk3 = true;
+            }
         }
     }
     return phi_s0;
@@ -662,11 +691,11 @@ struct Expression *unroll_resetincr(struct Expression *expr, int spCC) {
 0046E77C oneloopblockstmt
 */
 struct Expression *unroll_resetincr_mod(struct Expression *expr, int *incr) {
+
     //! why not incr > 0x8000 (or incr <= -0x8000)?
     if (*incr < -0x8000 || *incr >= 0x8000) {
-        int highbits = *incr & 0xFFFF8000;
-        *incr -= highbits;
-        expr = binopwithconst(Uadd, expr, highbits);
+        *incr = *incr - (*incr & 0xFFFF8000);
+        expr = binopwithconst(Uadd, expr, (*incr & 0xFFFF8000));
     }
     return expr;
 }
@@ -680,10 +709,10 @@ bool unroll_check_istr_propcopy(struct Expression *arg1, int arg2, Datatype dtyp
     struct Expression *phi_v1;
 
     phi_s0 = curgraphnode->varlisttail;
-    while (phi_s0 != NULL) {
+    while (phi_s0 != 0) {
         if (phi_s0->type == islda) {
             store = phi_s0->data.store;
-            if (store->opc == Uistr && arg1 == store->expr && arg2 == store->u.store.u.istr.offset && store->u.store.store_av && dtype == store->u.store.u.istr.dtype && unk3C == store->u.store.size && !treekilled(store->u.store.expr)) {
+            if (store->opc == Uistr && arg1 == store->expr && arg2 == store->u.store.u.istr.s.word && store->u.store.unk1F != 0 && dtype == store->u.store.u.istr.dtype && unk3C == store->u.store.size && !treekilled(store->u.store.expr)) {
                 decreasecount(arg1);
                 phi_v1 = phi_s0->data.store->u.store.expr;
 
@@ -708,10 +737,10 @@ bool unroll_check_irst_propcopy(struct Expression *arg1, int arg2, Datatype dtyp
     struct Expression *phi_v1;
 
     phi_s0 = curgraphnode->varlisttail;
-    while (phi_s0 != NULL) {
+    while (phi_s0 != 0) {
         if (phi_s0->type == islda) {
             store = phi_s0->data.store;
-            if (store->opc == Uirst && arg1 == store->expr && arg2 == store->u.store.u.istr.offset && store->u.store.store_av && dtype == store->u.store.u.istr.dtype && unk3C == store->u.store.size && !treekilled(store->u.store.expr)) {
+            if (store->opc == Uirst && arg1 == store->expr && arg2 == store->u.store.u.istr.s.word && store->u.store.unk1F != 0 && dtype == store->u.store.u.istr.dtype && unk3C == store->u.store.size && !treekilled(store->u.store.expr)) {
                 decreasecount(arg1);
                 phi_v1 = phi_s0->data.store->u.store.expr;
 
@@ -739,8 +768,8 @@ struct Expression *oneloopblockexpr(struct Expression *expr, int *arg1) {
     struct Expression *sp60;
     struct Expression *sp5C;
     struct Expression *sp58;
-    int sp54 = 0;
-    int sp50 = 0;
+    int sp54;
+    int sp50;
     int sp4C;
     struct Expression *temp_a0_2;
 
@@ -748,59 +777,59 @@ struct Expression *oneloopblockexpr(struct Expression *expr, int *arg1) {
         case isvar:
         case issvar:
             if (expr->type == issvar) {
-                sp5C = oneloopblockexpr(expr->data.isvar_issvar.outer_stack, &sp54);
+                sp5C = oneloopblockexpr(expr->data.isvar_issvar.unk24, &sp54);
             }
             sp60 = unroll_searchloop(expr->table_index, expr, NULL, NULL);
 
             if (sp60->type == empty) {
                 sp60->type = expr->type;
-                sp60->data.isvar_issvar.location = expr->data.isvar_issvar.location;
+                sp60->data.isvar_issvar.var_data = expr->data.isvar_issvar.var_data;
                 sp60->data.isvar_issvar.assignment = NULL;
                 sp60->datatype = expr->datatype;
                 sp60->data.isvar_issvar.size = expr->data.isvar_issvar.size;
                 sp60->count = 0;
-                sp60->data.isvar_issvar.copy = NULL;
+                sp60->data.isvar_issvar.unk30 = NULL;
                 if (expr->type == issvar) {
-                    sp60->data.isvar_issvar.temploc = 0;
+                    sp60->data.isvar_issvar.unk3C = 0;
                     sp60->unk4 = 0;
-                    sp60->visited = 0;
-                    sp60->data.isvar_issvar.outer_stack = sp5C;
+                    sp60->unk5 = 0;
+                    sp60->data.isvar_issvar.unk24 = sp5C;
                 } else {
-                    sp60->data.isvar_issvar.outer_stack = NULL;
+                    sp60->data.isvar_issvar.unk24 = NULL;
                 }
 
-                if (sp60->data.isvar_issvar.veqv == 0) {
-                    sp60->killed = 0;
-                    if (sp60->initialVal && !sp60->data.isvar_issvar.vreg) {
-                        sp60->initialVal = !varkilled(sp60, curgraphnode->varlisthead);
+                if (sp60->data.isvar_issvar.unk21 == 0) {
+                    sp60->unk2 = 0;
+                    if (sp60->unk3 && !sp60->data.isvar_issvar.unk22) {
+                        sp60->unk3 = !varkilled(sp60, curgraphnode->varlisthead);
                     }
                 } else {
-                    sp60->killed = 1;
-                    sp60->initialVal = 0;
+                    sp60->unk2 = 1;
+                    sp60->unk3 = 0;
                 }
                 sp60->data.isvar_issvar.is_volatile = expr->data.isvar_issvar.is_volatile;
             }
 
-            if (sp60->data.isvar_issvar.assignment == NULL || !sp60->data.isvar_issvar.assignment->u.store.store_av) {
+            if (sp60->data.isvar_issvar.assignment == NULL || !sp60->data.isvar_issvar.assignment->u.store.unk1F) {
                 increasecount(sp60);
-                if (!sp60->data.isvar_issvar.vreg) {
+                if (!sp60->data.isvar_issvar.unk22) {
                     lodkillprev(sp60);
                 }
-                if (sp60->count == 1 && sp60->data.isvar_issvar.location.memtype != Amt) {
+                if (sp60->count == 1 && sp60->data.isvar_issvar.var_data.memtype != Amt) {
                     appendbbvarlst(sp60);
-                    if (sp60->data.isvar_issvar.vreg) {
+                    if (sp60->data.isvar_issvar.unk22) {
                         curgraphnode->varlisttail->unk8 = 1;
                     }
                 }
             } else {
-                sp60->data.isvar_issvar.assignment->u.store.lval_av = false;
+                sp60->data.isvar_issvar.assignment->u.store.unk1D = false;
                 if (sp60->count == 0) {
-                    if (!sp60->data.isvar_issvar.vreg) {
+                    if (!sp60->data.isvar_issvar.unk22) {
                         lodkillprev(sp60);
                     }
-                    if (sp60->data.isvar_issvar.location.memtype != 5) {
+                    if (sp60->data.isvar_issvar.var_data.memtype != 5) {
                         appendbbvarlst(sp60);
-                        if (sp60->data.isvar_issvar.vreg) {
+                        if (sp60->data.isvar_issvar.unk22) {
                             curgraphnode->varlisttail->unk8 = 1;
                         }
                     }
@@ -816,20 +845,20 @@ struct Expression *oneloopblockexpr(struct Expression *expr, int *arg1) {
             return sp60;
 
         case isilda:
-            sp5C = oneloopblockexpr(expr->data.islda_isilda.outer_stack, &sp54);
+            sp5C = oneloopblockexpr(expr->data.islda_isilda.unk34, &sp54);
             sp60 = unroll_searchloop(expr->table_index, expr, sp5C, NULL);
             if (sp60->type == empty) {
                 sp60->type = isilda;
                 sp60->unk4 = 0;
-                sp60->visited = 0;
+                sp60->unk5 = 0;
                 sp60->count = 1;
                 sp60->datatype = Adt;
-                sp60->data.islda_isilda.address = expr->data.islda_isilda.address;
-                sp60->data.islda_isilda.offset = expr->data.islda_isilda.offset;
+                sp60->data.islda_isilda.var_data = expr->data.islda_isilda.var_data;
+                sp60->data.islda_isilda.addr = expr->data.islda_isilda.addr;
                 sp60->data.islda_isilda.size = expr->data.islda_isilda.size;
                 sp60->var_access_list = NULL;
-                sp60->data.islda_isilda.outer_stack = sp5C;
-                sp60->data.islda_isilda.temploc = NULL;
+                sp60->data.islda_isilda.unk34 = sp5C;
+                sp60->data.islda_isilda.unk38 = 0;
             } else {
                 increasecount(sp60);
             }
@@ -942,9 +971,9 @@ struct Expression *oneloopblockexpr(struct Expression *expr, int *arg1) {
                         if (expr->data.isop.opc == Uinn) {
                             sp60->data.isop.aux2.v1.unk3C = expr->data.isop.aux2.v1.unk3C;
                         }
-                        sp60->data.isop.temploc = 0;
+                        sp60->data.isop.unk30 = 0;
                         sp60->unk4 = 0;
-                        sp60->visited = 0;
+                        sp60->unk5 = 0;
                         sp60->count = 1;
                         sp60->data.isop.aux2.v1.overflow_attr = expr->data.isop.aux2.v1.overflow_attr;
                         if (expr->data.isop.opc == Uequ ||
@@ -953,8 +982,8 @@ struct Expression *oneloopblockexpr(struct Expression *expr, int *arg1) {
                                 expr->data.isop.opc == Uleq ||
                                 expr->data.isop.opc == Ules ||
                                 expr->data.isop.opc == Uneq) {
-                            sp60->data.isop.aux.unk38_trep = NULL;
-                            sp60->data.isop.aux2.unk3C_trep = NULL;
+                            sp60->data.isop.aux.unk38 = NULL;
+                            sp60->data.isop.aux2.v2.unk3C = 0;
                         }
                     } else {
                         incroccurrence(&sp60);
@@ -974,9 +1003,9 @@ struct Expression *oneloopblockexpr(struct Expression *expr, int *arg1) {
                         sp60->data.isop.op1 = sp5C;
                         sp60->data.isop.aux2.v1.overflow_attr = 0;
                         sp60->data.isop.op2 = sp58;
-                        sp60->data.isop.temploc = 0;
+                        sp60->data.isop.unk30 = 0;
                         sp60->unk4 = 0;
-                        sp60->visited = 0;
+                        sp60->unk5 = 0;
                         sp60->count = 1;
                         sp60->data.isop.datasize = expr->data.isop.datasize;
                     } else {
@@ -1034,8 +1063,8 @@ struct Expression *oneloopblockexpr(struct Expression *expr, int *arg1) {
                                 expr->data.isop.opc == Usgs) {
                             sp60->data.isop.datasize = expr->data.isop.datasize;
                         }
-                        sp60->data.isop.temploc = 0;
-                        sp60->visited = 0;
+                        sp60->data.isop.unk30 = 0;
+                        sp60->unk5 = 0;
                         sp60->unk4 = 0;
                         sp60->data.isop.aux2.v1.overflow_attr = expr->data.isop.aux2.v1.overflow_attr;
                     } else {
@@ -1057,8 +1086,8 @@ struct Expression *oneloopblockexpr(struct Expression *expr, int *arg1) {
                         sp60->data.isop.datasize = expr->data.isop.datasize;
                         sp60->count = 1;
                         sp60->data.isop.aux2.v1.overflow_attr = 0;
-                        sp60->data.isop.temploc = 0;
-                        sp60->visited = 0;
+                        sp60->data.isop.unk30 = 0;
+                        sp60->unk5 = 0;
                         sp60->unk4 = 0;
                         sp60->data.isop.aux2.v1.unk3C = expr->data.isop.aux2.v1.unk3C;
                     } else {
@@ -1088,21 +1117,21 @@ struct Expression *oneloopblockexpr(struct Expression *expr, int *arg1) {
                             sp60->data.isop.aux2.v1.overflow_attr = 0;
                             sp60->data.isop.datasize = sp54;
                             sp60->data.isop.aux2.v1.unk3C = expr->data.isop.aux2.v1.unk3C;
-                            sp60->data.isop.aux2.v1.align = expr->data.isop.aux2.v1.align;
-                            sp60->data.isop.temploc = 0;
-                            sp60->visited = 0;
+                            sp60->data.isop.aux2.v1.unk3F = expr->data.isop.aux2.v1.unk3F;
+                            sp60->data.isop.unk30 = 0;
+                            sp60->unk5 = 0;
                             sp60->unk4 = 0;
                             sp60->data.isop.aux.cvtfrom = expr->data.isop.aux.cvtfrom;
 
                             sp60->data.isop.unk34 = findbaseaddr(sp5C);
-                            if (sp60->datatype != Sdt && sp60->data.isop.opc != Uildv) {
-                                sp60->killed = false;
-                                if (sp60->initialVal) {
-                                    sp60->initialVal = !varkilled(sp60, curgraphnode->varlisthead);
+                            if ((sp60->datatype != 0xE) && (sp60->data.isop.opc != Uildv)) {
+                                sp60->unk2 = 0;
+                                if (sp60->unk3 != 0) {
+                                    sp60->unk3 = varkilled(sp60, curgraphnode->varlisthead) == 0;
                                 }
                             } else {
-                                sp60->killed = true;
-                                sp60->initialVal = false;
+                                sp60->unk2 = 1;
+                                sp60->unk3 = 0;
                             }
                             appendbbvarlst(sp60);
                             lodkillprev(sp60);
@@ -1127,22 +1156,22 @@ struct Expression *oneloopblockexpr(struct Expression *expr, int *arg1) {
                         sp60->data.isop.opc = expr->data.isop.opc;
                         sp60->data.isop.datasize = expr->data.isop.datasize;
                         sp60->data.isop.aux2.v1.unk3C = expr->data.isop.aux2.v1.unk3C;
-                        sp60->data.isop.aux2.v1.align = expr->data.isop.aux2.v1.align;
-                        sp60->data.isop.temploc = 0;
+                        sp60->data.isop.aux2.v1.unk3F = expr->data.isop.aux2.v1.unk3F;
+                        sp60->data.isop.unk30 = 0;
                         sp60->unk4 = 0;
-                        sp60->visited = 0;
+                        sp60->unk5 = 0;
                         sp60->count = 1;
                         sp60->data.isop.aux.cvtfrom = expr->data.isop.aux.cvtfrom;
 
                         sp60->data.isop.unk34 = findbaseaddr(sp5C);
-                        if (sp60->datatype != Sdt && sp60->data.isop.opc != Uildv) {
-                            sp60->killed = false;
-                            if (sp60->initialVal) {
-                                sp60->initialVal = !varkilled(sp60, curgraphnode->varlisthead);
+                        if ((sp60->datatype != 0xE) && (sp60->data.isop.opc != 0x33)) {
+                            sp60->unk2 = 0;
+                            if (sp60->unk3) {
+                                sp60->unk3 = varkilled(sp60, curgraphnode->varlisthead) == 0;
                             }
                         } else {
-                            sp60->killed = true;
-                            sp60->initialVal = false;
+                            sp60->unk2 = 1;
+                            sp60->unk3 = 0;
                         }
                         appendbbvarlst(sp60);
                         lodkillprev(sp60);
@@ -1167,7 +1196,7 @@ struct Expression *oneloopblockexpr(struct Expression *expr, int *arg1) {
                         sp60->type = isop;
                         sp60->datatype = Mdt;
                         sp60->unk4 = 0;
-                        sp60->visited = 0;
+                        sp60->unk5 = 0;
                         sp60->count = 1;
                         sp60->data.isop.datatype = Jdt;
                         sp60->data.isop.opc = expr->data.isop.opc;
@@ -1175,14 +1204,14 @@ struct Expression *oneloopblockexpr(struct Expression *expr, int *arg1) {
                         sp60->data.isop.aux2.v1.overflow_attr = 0;
                         sp60->data.isop.op2 = sp58;
                         sp60->data.isop.datasize = expr->data.isop.datasize;
-                        sp60->killed = false;
-                        sp60->data.isop.temploc = 0;
+                        sp60->unk2 = 0;
+                        sp60->data.isop.unk30 = 0;
                         sp60->data.isop.aux2.v1.unk3C = expr->data.isop.aux2.v1.unk3C;
 
                         sp60->data.isop.unk34 = findbaseaddr(sp5C);
                         sp60->data.isop.aux.unk38 = findbaseaddr(sp58);
-                        if (sp60->initialVal) {
-                            sp60->initialVal = !varkilled(sp60, curgraphnode->varlisthead);
+                        if (sp60->unk3 != 0) {
+                            sp60->unk3 = varkilled(sp60, curgraphnode->varlisthead) == 0;
                         }
                         appendbbvarlst(sp60);
                         lodkillprev(sp60);
@@ -1215,11 +1244,11 @@ struct Expression *oneloopblockexpr(struct Expression *expr, int *arg1) {
 void oneloopblockstmt(struct Statement *stat) {
     struct Expression *sp60;
     struct Expression *sp5C;
-    bool lval_ant;
-    bool store_ant;
+    bool sp5B;
+    bool sp5A;
     bool sp59;
-    int sp54 = 0;
-    int sp50 = 0;
+    int sp54;
+    unsigned int sp50;
     struct Expression *temp_a0_4;
     struct Expression *phi_s1;
     struct Statement *s0;
@@ -1247,20 +1276,19 @@ void oneloopblockstmt(struct Statement *stat) {
     switch (stat->opc) {
         case Uisst:
         case Ustr:
-            sp5C = oneloopblockexpr(stat->expr->data.isvar_issvar.assigned_value, &sp54);
-            sp5C = unroll_resetincr(sp5C, sp54);
+            sp5C = unroll_resetincr(oneloopblockexpr(stat->expr->data.isvar_issvar.assigned_value, &sp54), sp54);
             sp60 = unroll_searchloop(stat->expr->table_index, stat->expr, 0, 0);
             if (sp60->type != empty) {
                 if (sp60->data.isvar_issvar.assignment == NULL) {
-                    sp60->killed = true;
+                    sp60->unk2 = true;
                     phi_s1 = appendchain(sp60->table_index);
                     phi_s1->graphnode = curgraphnode;
-                    phi_s1->data.isvar_issvar.vreg = sp60->data.isvar_issvar.vreg;
-                    phi_s1->initialVal = false;
-                    phi_s1->data.isvar_issvar.veqv = sp60->data.isvar_issvar.veqv;
-                    lval_ant = false;
-                    store_ant = true;
-                } else if (sp60->data.isvar_issvar.assigned_value != NULL && sp60->data.isvar_issvar.assignment->u.store.lval_av) {
+                    phi_s1->data.isvar_issvar.unk22 = sp60->data.isvar_issvar.unk22;
+                    phi_s1->unk3 = 0;
+                    phi_s1->data.isvar_issvar.unk21 = sp60->data.isvar_issvar.unk21;
+                    sp5B = false;
+                    sp5A = true;
+                } else if (sp60->data.isvar_issvar.assigned_value != NULL && sp60->data.isvar_issvar.assignment->u.store.unk1D) {
                     s0 = sp60->data.isvar_issvar.assignment;
                     s0->u.store.var_access_list_item->type = 0;
                     if (has_volt_ovfw(s0->expr->data.isvar_issvar.assigned_value)) {
@@ -1274,147 +1302,146 @@ void oneloopblockstmt(struct Statement *stat) {
                     }
 
                     phi_s1 = sp60;
-                    lval_ant = s0->u.store.lval_ant;
-                    store_ant = s0->u.store.store_ant;
+                    sp5B = s0->u.store.unk1C;
+                    sp5A = s0->u.store.unk1E;
                 } else {
                     if (sp5C == sp60->data.isvar_issvar.assigned_value) {
                         decreasecount(sp5C);
-                        break;
+                        return;
                     }
 
-                    sp60->killed = 1;
-                    sp60->data.isvar_issvar.assignment->u.store.store_av = false;
+                    sp60->unk2 = 1;
+                    sp60->data.isvar_issvar.assignment->u.store.unk1F = false;
                     phi_s1 = appendchain(sp60->table_index);
                     phi_s1->graphnode = curgraphnode;
-                    phi_s1->data.isvar_issvar.vreg = sp60->data.isvar_issvar.vreg;
-                    phi_s1->initialVal = false;
-                    phi_s1->data.isvar_issvar.veqv = sp60->data.isvar_issvar.veqv;
-                    lval_ant = false;
-                    store_ant = false;
+                    phi_s1->data.isvar_issvar.unk22 = sp60->data.isvar_issvar.unk22;
+                    phi_s1->unk3 = 0;
+                    phi_s1->data.isvar_issvar.unk21 = sp60->data.isvar_issvar.unk21;
+                    sp5B = false;
+                    sp5A = false;
                 }
             } else {
                 phi_s1 = sp60;
-                lval_ant = true;
-                store_ant = true;
+                sp5B = true;
+                sp5A = true;
             }
 
             if (phi_s1->type == empty) {
                 phi_s1->type = stat->expr->type;
-                phi_s1->data.isvar_issvar.location = stat->expr->data.isvar_issvar.location;
+                phi_s1->data.isvar_issvar.var_data = stat->expr->data.isvar_issvar.var_data;
                 phi_s1->datatype = stat->expr->datatype;
                 phi_s1->data.isvar_issvar.size = stat->expr->data.isvar_issvar.size;
-                phi_s1->initialVal = false;
+                phi_s1->unk3 = 0;
                 phi_s1->count = 0;
-                phi_s1->data.isvar_issvar.copy = NULL;
+                phi_s1->data.isvar_issvar.unk30 = NULL;
                 if (stat->expr->type == issvar) {
-                    phi_s1->data.isvar_issvar.outer_stack = oneloopblockexpr(stat->u.store.expr, &sp54);
-                    phi_s1->data.isvar_issvar.temploc = 0;
+                    phi_s1->data.isvar_issvar.unk24 = oneloopblockexpr(stat->u.store.expr, &sp54);
+                    phi_s1->data.isvar_issvar.unk3C = 0;
                     phi_s1->unk4 = 0;
-                    phi_s1->visited = 0;
+                    phi_s1->unk5 = 0;
                 } else {
-                    phi_s1->data.isvar_issvar.outer_stack = NULL;
+                    phi_s1->data.isvar_issvar.unk24 = NULL;
                 }
 
-                if (!phi_s1->data.isvar_issvar.veqv) {
-                    phi_s1->killed = false;
+                if (phi_s1->data.isvar_issvar.unk21 == 0) {
+                    phi_s1->unk2 = 0;
                 } else {
-                    phi_s1->killed = true;
+                    phi_s1->unk2 = 1;
                 }
 
                 phi_s1->data.isvar_issvar.is_volatile = stat->expr->data.isvar_issvar.is_volatile;
             }
 
-            if (phi_s1->data.isvar_issvar.veqv) {
-                lval_ant = false;
-                store_ant = false;
+            if (phi_s1->data.isvar_issvar.unk21 != 0) {
+                sp5B = false;
+                sp5A = false;
             }
 
             extendstat(stat->opc);
             phi_s1->data.isvar_issvar.assigned_value = sp5C;
-            TRAP_IF(stat->outpar);
-            stattail->outpar = false;
+            TRAP_IF(stat->unk3 != 0);
+            stattail->unk3 = 0;
             if (stattail->opc == Uisst) {
-                stattail->u.store.expr = phi_s1->data.isvar_issvar.outer_stack;
+                stattail->u.store.expr = phi_s1->data.isvar_issvar.unk24;
             }
 
             stattail->expr = phi_s1;
             phi_s1->data.isvar_issvar.assignment = stattail;
-            if (!stattail->outpar) {
-                stattail->u.store.lval_ant = lval_ant;
-                if (!phi_s1->data.isvar_issvar.vreg && lval_ant) {
-                    stattail->u.store.lval_ant = !strlkilled(stattail, curgraphnode->varlisthead);
+            if (stattail->unk3 == 0) {
+                stattail->u.store.unk1C = sp5B;
+                if (phi_s1->data.isvar_issvar.unk22 == 0 && sp5B != 0) {
+                    stattail->u.store.unk1C = strlkilled(stattail, curgraphnode->varlisthead) == 0;
                 }
 
-                stattail->u.store.store_ant = store_ant;
-                if (!phi_s1->data.isvar_issvar.vreg && store_ant) {
-                    stattail->u.store.store_ant = !strskilled(stattail, curgraphnode->varlisthead);
+                stattail->u.store.unk1E = sp5A;
+                if (phi_s1->data.isvar_issvar.unk22 == 0 && sp5A != 0) {
+                    stattail->u.store.unk1E = strskilled(stattail, curgraphnode->varlisthead) == 0;
                 }
 
-                stattail->u.store.lval_av = !phi_s1->data.isvar_issvar.veqv;
-                stattail->u.store.store_av = !phi_s1->data.isvar_issvar.veqv;
-                stattail->is_increment = stat->is_increment;
+                stattail->u.store.unk1D = phi_s1->data.isvar_issvar.unk21 == 0;
+                stattail->u.store.unk1F = phi_s1->data.isvar_issvar.unk21 == 0;
+                stattail->unk1 = stat->unk1;
             } else {
-                stattail->u.store.lval_ant = false;
-                stattail->u.store.store_ant = false;
-                stattail->u.store.lval_av = false;
-                stattail->u.store.store_av = false;
-                stattail->is_increment = false;
+                stattail->u.store.unk1C = 0;
+                stattail->u.store.unk1E = 0;
+                stattail->u.store.unk1D = 0;
+                stattail->u.store.unk1F = 0;
+                stattail->unk1 = 0;
             }
 
-            stattail->u.store.u.str.srcands = NULL;
-            stattail->u.store.u.str.recurs = NULL;
-            stattail->suppressed_iv = false;
-            if (!phi_s1->data.isvar_issvar.vreg) {
+            stattail->u.store.u.str.unk2C = 0;
+            stattail->u.store.u.str.unk30 = 0;
+            stattail->unk2 = 0;
+            if (phi_s1->data.isvar_issvar.unk22 == 0) {
                 strkillprev(stattail);
             }
 
             appendstorelist();
 
-            if (phi_s1->data.isvar_issvar.vreg) {
+            if (phi_s1->data.isvar_issvar.unk22 != 0) {
                 curgraphnode->varlisttail->unk8 = 1;
             }
-            break;
+            return;
 
         case Uchkt:
             stattail->expr = oneloopblockexpr(stat->expr, &sp54);
             stattail->expr = unroll_resetincr(stattail->expr, sp54);
             stattail->u.trap.unk18 = 0;
-            break;
+            return;
 
         case Uaos:
             stattail->expr = oneloopblockexpr(stat->expr, &sp54);
             stattail->expr = unroll_resetincr(stattail->expr, sp54);
-            break;
+            return;
 
         case Ulab:
             stattail->u.label.flags = stat->u.label.flags;
             stattail->u.label.length = stat->u.label.length;
             stattail->u.label.blockno = stat->u.label.blockno;
-            break;
+            return;
 
         case Uistr:
         case Uistv:
-            sp60 = oneloopblockexpr(stat->u.store.expr, &sp54);
-            sp60 = unroll_resetincr(sp60, sp54);
+            sp60 = unroll_resetincr(oneloopblockexpr(stat->u.store.expr, &sp54), sp54);
             temp_a0_4 = oneloopblockexpr(stat->expr, &sp54);
-            sp54 += stat->u.store.u.istr.offset;
+            sp54 += stat->u.store.u.istr.s.word;
             phi_s1 = unroll_resetincr_mod(temp_a0_4, &sp54);
-            sp59 = false;
+            sp59 = 0;
             if (stat->opc == Uistr) {
                 s0 = curgraphnode->stat_head;
-                while (s0 != NULL && !sp59) {
+                while (s0 != NULL && sp59 == 0) {
                     if (s0->opc == Uistr
                             && phi_s1 == s0->expr
-                            && sp54 == s0->u.store.u.istr.offset
+                            && sp54 == s0->u.store.u.istr.s.word
                             && stat->u.store.size == s0->u.store.size) {
 
-                        if (s0->u.store.lval_av != 0) {
+                        if (s0->u.store.unk1D != 0) {
                             decreasecount(s0->expr);
                             decreasecount(s0->u.store.expr);
                             s0->opc = Unop;
                             s0->u.store.var_access_list_item->type = 0;
-                        } else if (s0->u.store.store_av && sp60 == s0->u.store.expr) {
-                            sp59 = true;
+                        } else if (s0->u.store.unk1F != 0 && sp60 == s0->u.store.expr) {
+                            sp59 = 1;
                             decreasecount(phi_s1);
                             decreasecount(sp60);
                         }
@@ -1428,60 +1455,58 @@ void oneloopblockstmt(struct Statement *stat) {
                 stattail->expr = phi_s1;
                 stattail->u.store.expr = sp60;
                 stattail->u.store.u.istr.dtype = stat->u.store.u.istr.dtype;
-                stattail->u.store.u.istr.align = stat->u.store.u.istr.align;
-                stattail->u.store.u.istr.offset = sp54;
-                stattail->u.store.u.istr.mtagno = stat->u.store.u.istr.mtagno;
+                stattail->u.store.u.istr.unk2D = stat->u.store.u.istr.unk2D;
+                stattail->u.store.u.istr.s.word = sp54;
+                stattail->u.store.u.istr.offset = stat->u.store.u.istr.offset;
                 stattail->u.store.size = stat->u.store.size;
                 stattail->u.store.baseaddr = findbaseaddr(phi_s1);
 
                 if (stat->opc == Uistr) {
-                    stattail->u.store.lval_ant = strlkilled(stattail, curgraphnode->varlisthead) == 0;
-                    stattail->u.store.lval_av = 1;
-                    stattail->u.store.store_ant = strskilled(stattail, curgraphnode->varlisthead) == 0;
-                    stattail->u.store.store_av = 1;
+                    stattail->u.store.unk1C = strlkilled(stattail, curgraphnode->varlisthead) == 0;
+                    stattail->u.store.unk1D = 1;
+                    stattail->u.store.unk1E = strskilled(stattail, curgraphnode->varlisthead) == 0;
+                    stattail->u.store.unk1F = 1;
                 } else {
-                    stattail->u.store.lval_ant = 0;
-                    stattail->u.store.lval_av = 0;
-                    stattail->u.store.store_ant = 0;
-                    stattail->u.store.store_av = 0;
+                    stattail->u.store.unk1C = 0;
+                    stattail->u.store.unk1D = 0;
+                    stattail->u.store.unk1E = 0;
+                    stattail->u.store.unk1F = 0;
                 }
 
                 strkillprev(stattail);
                 appendstorelist();
             }
-            break;
+            return;
 
         case Uirst:
         case Uirsv:
-            sp60 = oneloopblockexpr(stat->u.store.expr, &sp54);
-            sp60 = unroll_resetincr(sp60, sp54);
-            phi_s1 = oneloopblockexpr(stat->expr, &sp54);
-            phi_s1 = unroll_resetincr_mod(phi_s1, &sp54);
+            sp60 = unroll_resetincr(oneloopblockexpr(stat->u.store.expr, &sp54), sp54);
+            phi_s1 = unroll_resetincr_mod(oneloopblockexpr(stat->expr, &sp54), &sp54);
 
             extendstat(stat->opc);
             stattail->expr = phi_s1;
             stattail->u.store.expr = sp60;
             stattail->u.store.u.istr.dtype = stat->u.store.u.istr.dtype;
-            stattail->u.store.u.istr.align = stat->u.store.u.istr.align;
-            stattail->u.store.u.istr.offset = sp54;
-            stattail->u.store.u.istr.mtagno = stat->u.store.u.istr.mtagno;
+            stattail->u.store.u.istr.unk2D = stat->u.store.u.istr.unk2D;
+            stattail->u.store.u.istr.s.word = sp54;
+            stattail->u.store.u.istr.offset = stat->u.store.u.istr.offset;
             stattail->u.store.size = stat->u.store.size;
             stattail->u.store.baseaddr = findbaseaddr(phi_s1);
             if (stat->opc == Uirst) {
-                stattail->u.store.lval_ant = strlkilled(stattail, curgraphnode->varlisthead) == 0;
-                stattail->u.store.lval_av = 1;
-                stattail->u.store.store_ant = strskilled(stattail, curgraphnode->varlisthead) == 0;
-                stattail->u.store.store_av = 1;
+                stattail->u.store.unk1C = strlkilled(stattail, curgraphnode->varlisthead) == 0;
+                stattail->u.store.unk1D = 1;
+                stattail->u.store.unk1E = strskilled(stattail, curgraphnode->varlisthead) == 0;
+                stattail->u.store.unk1F = 1;
             } else {
-                stattail->u.store.lval_ant = 0;
-                stattail->u.store.lval_av = 0;
-                stattail->u.store.store_ant = 0;
-                stattail->u.store.store_av = 0;
+                stattail->u.store.unk1C = 0;
+                stattail->u.store.unk1D = 0;
+                stattail->u.store.unk1E = 0;
+                stattail->u.store.unk1F = 0;
             }
 
             strkillprev(stattail);
             appendstorelist();
-            break;
+            return;
 
         case Umov:
         case Umovv:
@@ -1490,33 +1515,33 @@ void oneloopblockstmt(struct Statement *stat) {
             stattail->u.store.expr = oneloopblockexpr(stat->u.store.expr, &sp54);
             stattail->u.store.expr = unroll_resetincr(stattail->u.store.expr, sp54);
             stattail->u.store.size = stat->u.store.size;
-            stattail->u.store.u.mov.src_align = stat->u.store.u.mov.src_align;
-            stattail->u.store.u.mov.dst_align = stat->u.store.u.mov.dst_align;
+            stattail->u.store.u.mov.unk32 = stat->u.store.u.mov.unk32;
+            stattail->u.store.u.mov.unk33 = stat->u.store.u.mov.unk33;
             stattail->u.store.u.mov.baseaddr = findbaseaddr(stattail->u.store.expr);
             appendstorelist();
             stattail->u.store.var_access_list_item->type = 3;
             movkillprev(stattail);
             stattail->u.store.baseaddr = findbaseaddr(stattail->expr);
             if (stat->opc == Umov) {
-                stattail->u.store.lval_ant = strlkilled(stattail, curgraphnode->varlisthead) == 0;
-                stattail->u.store.store_ant = strskilled(stattail, curgraphnode->varlisthead) == 0;
-                stattail->u.store.lval_av = 1;
-                stattail->u.store.store_av = 1;
+                stattail->u.store.unk1C = strlkilled(stattail, curgraphnode->varlisthead) == 0;
+                stattail->u.store.unk1E = strskilled(stattail, curgraphnode->varlisthead) == 0;
+                stattail->u.store.unk1D = 1;
+                stattail->u.store.unk1F = 1;
             } else {
-                stattail->u.store.lval_ant = 0;
-                stattail->u.store.lval_av = 0;
-                stattail->u.store.store_ant = 0;
-                stattail->u.store.store_av = 0;
+                stattail->u.store.unk1C = 0;
+                stattail->u.store.unk1D = 0;
+                stattail->u.store.unk1E = 0;
+                stattail->u.store.unk1F = 0;
             }
 
             strkillprev(stattail);
             appendstorelist();
-            break;
+            return;
 
         case Ustsp:
             stattail->expr = oneloopblockexpr(stat->expr, &sp54);
             stattail->expr = unroll_resetincr(stattail->expr, sp54);
-            break;
+            return;
 
         case Utpeq:
         case Utpge:
@@ -1571,17 +1596,17 @@ void oneloopblockstmt(struct Statement *stat) {
                 stattail->u.trap.unk18 = 0;
                 stattail->u.trap.dtype = stat->u.trap.dtype;
             }
-            break;
+            return;
 
         case Uloc:
             stattail->u.loc.page = stat->u.loc.page;
             stattail->u.loc.line = stat->u.loc.line;
-            break;
+            return;
 
         case Ubgnb:
         case Uendb:
             stattail->u.bgnb.blockno = stat->u.bgnb.blockno;
-            break;
+            return;
 
         case Upop:
             stattail->expr = oneloopblockexpr(stat->expr, &sp54);
@@ -1591,34 +1616,34 @@ void oneloopblockstmt(struct Statement *stat) {
 
             stattail->u.pop.dtype = stat->u.pop.dtype;
             stattail->u.pop.unk15 = stat->u.pop.unk15;
-            break;
+            return;
 
         case Uujp:
             stattail->u.jp.target_blockno = stat->u.jp.target_blockno;
-            break;
+            return;
 
         case Ufjp:
         case Utjp:
             stattail->expr = oneloopblockexpr(stat->expr, &sp54);
             if (stattail->expr->type == isvar) {
-                stattail->expr = binopwithconst(Uadd, stattail->expr, sp54);
+                stattail->expr = binopwithconst(1, stattail->expr, sp54);
             } else {
                 stattail->expr = unroll_resetincr(stattail->expr, sp54);
             }
 
             stattail->u.jp.incre = 0;
             stattail->u.jp.target_blockno = stat->u.jp.target_blockno;
-            break;
+            return;
 
         case Uijp:
             stattail->expr = oneloopblockexpr(stat->expr, &sp54);
             stattail->expr = unroll_resetincr(stattail->expr, sp54);
-            break;
+            return;
 
         case Uxjp:
             stattail->expr = oneloopblockexpr(stat->expr, &sp54);
             if (stattail->expr->type == isvar) {
-                stattail->expr = binopwithconst(Uadd, stattail->expr, sp54);
+                stattail->expr = binopwithconst(1, stattail->expr, sp54);
             } else {
                 stattail->expr = unroll_resetincr(stattail->expr, sp54);
             }
@@ -1631,31 +1656,31 @@ void oneloopblockstmt(struct Statement *stat) {
             stattail->u.xjp.hbound_l = stat->u.xjp.hbound_l;
             stattail->u.xjp.hbound_h = stat->u.xjp.hbound_h;
             stattail->u.xjp.case_stmts = stat->u.xjp.case_stmts;
-            break;
+            return;
 
         case Uclbd:
         case Ucubd:
         case Ustep:
             stattail->u.clbd_cubd_step.dtype = stat->u.clbd_cubd_step.dtype;
             stattail->u.clbd_cubd_step.unk18 = stat->u.clbd_cubd_step.unk18;
-            break;
+            return;
 
         case Uctrl:
             stattail->u.ctrl.dtype = stat->u.ctrl.dtype;
             stattail->u.ctrl.unk15 = stat->u.ctrl.unk15;
             stattail->u.ctrl.var = stat->u.ctrl.var;
-            break;
+            return;
 
         default:
             caseerror(1, 984, "uoptroll.p", 10);
-            break;
+            return;
 
-        case Unop:
-        case Ulend:
-        case Ulbdy:
-        case Ulbgn:
-        case Ultrm:
-        case Uret:
+        case Unop: // ignored 19
+        case Ulend: // ignored 20
+        case Ulbdy: // ignored 21
+        case Ulbgn: // ignored 21
+        case Ultrm: // ignored 21
+        case Uret: // ignored 21
             break;
     }
 }
@@ -1665,18 +1690,18 @@ void oneloopblockstmt(struct Statement *stat) {
 0046FCD4 link_jump_in_loop
 004713E8 loopunroll
 */
-void create_edge(struct Graphnode *from, struct Graphnode *to) {
+void create_edge(struct Graphnode *node1, struct Graphnode *node2) {
     struct GraphnodeList *edge;
 
     edge = alloc_new(sizeof(struct GraphnodeList), &perm_heap);
-    edge->graphnode = to;
-    edge->next = from->successors;
-    from->successors = edge;
+    edge->graphnode = node2;
+    edge->next = node1->successors;
+    node1->successors = edge;
 
     edge = alloc_new(sizeof(struct GraphnodeList), &perm_heap);
-    edge->graphnode = from;
-    edge->next = to->predecessors;
-    to->predecessors = edge;
+    edge->graphnode = node1;
+    edge->next = node2->predecessors;
+    node2->predecessors = edge;
 }
 
 /*
@@ -1686,15 +1711,15 @@ void create_edge(struct Graphnode *from, struct Graphnode *to) {
 004713E8 loopunroll
 */
 void new_header_node(bool arg0) {
-    curgraphnode = alloc_new(sizeof (struct Graphnode), &perm_heap);
+    curgraphnode = alloc_new(0x174, &perm_heap);
     init_graphnode(curgraphnode);
-    curgraphnode->terminal = true;
+    curgraphnode->terminal = 1;
     curgraphnode->unk7 = 2;
     curgraphnode->num = curstaticno++;
 
     curgraphnode->loopdepth = loopheader->loopdepth;
-    curgraphnode->in_rolled_preloop = loopheader->in_rolled_preloop;
-    curgraphnode->frequency = loopheader->frequency;
+    curgraphnode->unkBb8 = loopheader->unkBb8;
+    curgraphnode->unk2C = loopheader->unk2C;
     curgraphnode->bvs.init.line = loopheader->bvs.init.line;
 
     curgraphnode->next = loopbody;
@@ -1705,7 +1730,7 @@ void new_header_node(bool arg0) {
     curgraphnode->predecessors = NULL;
     curgraphnode->successors = NULL;
 
-    if (arg0) {
+    if (arg0 != 0) {
         create_edge(loopheader, curgraphnode);
     }
 
@@ -1716,23 +1741,23 @@ void new_header_node(bool arg0) {
 004713E8 loopunroll
 */
 void record_labels(void) {
-    struct Graphnode *node = loopbody;
+    struct Graphnode *node_s0 = loopbody;
 
-    while (node != loopbodyend) {
-        if (node != node->stat_tail->next->graphnode) {
-            node = node->stat_tail->next->graphnode;
+    while (node_s0 != loopbodyend) {
+        if (node_s0 != node_s0->stat_tail->next->graphnode) {
+            node_s0 = node_s0->stat_tail->next->graphnode;
         } else {
-            node = node->stat_tail->next->next->graphnode;
+            node_s0 = node_s0->stat_tail->next->next->graphnode;
         }
 
-        if (node->blockno != 0 && node->blockno != looplab) {
-            labelmap_unused->blockno = node->blockno;
-            if (labelmap_unused->next != NULL) {
+        if (node_s0->blockno != 0 && node_s0->blockno != looplab) {
+            labelmap_unused->blockno = node_s0->blockno;
+            if (labelmap_unused->next != 0) {
                 labelmap_unused = labelmap_unused->next;
             } else {
-                labelmap_unused->next = alloc_new(sizeof (struct LabelMap), &perm_heap);
+                labelmap_unused->next = alloc_new(0x10, &perm_heap);
                 labelmap_unused = labelmap_unused->next;
-                labelmap_unused->next = NULL;
+                labelmap_unused->next = 0;
             }
         }
     }
@@ -1807,7 +1832,7 @@ void link_jump_in_loop(struct Statement *stat, bool arg1) {
         case Uret:
             curgraphnode->stat_tail = stattail;
             codeimage();
-            new_header_node(false);
+            new_header_node(0);
             if (arg1) {
                 curgraphnode->loop = loopbody->loop;
             } else {
@@ -1850,10 +1875,10 @@ void pre_loopblock(bool arg0, bool arg1) {
     while (stat != incr_stat) {
         if (stat->opc != Ulab || (stat->u.label.blockno != looplab)) {
             if (stat->opc == Ulab) {
-                if (curgraphnode->stat_head != NULL) {
+                if (curgraphnode->stat_head != 0) {
                     curgraphnode->stat_tail = stattail;
                     codeimage();
-                    new_header_node(true);
+                    new_header_node(1);
 
                     if (arg1) {
                         curgraphnode->loop = loopbody->loop;
@@ -1893,9 +1918,6 @@ void pre_loopblock(bool arg0, bool arg1) {
                     case Uirsv:
                         oneloopblockstmt(stat);
                         break;
-
-                    default:
-                        break;
                 }
             }
 
@@ -1907,9 +1929,6 @@ void pre_loopblock(bool arg0, bool arg1) {
                 case Uujp:
                     link_jump_in_loop(stat, arg1);
                     break;
-
-                    default:
-                        break;
             }
         }
         stat = stat->next;
@@ -1920,24 +1939,25 @@ void pre_loopblock(bool arg0, bool arg1) {
 004713E8 loopunroll
 */
 void post_loopblock(bool arg0, bool arg1, bool arg2) {
-    struct Statement *stat;
+    struct Statement *phi_s0;
     int i;
 
-    stat = incr_stat->next;
+    phi_s0 = incr_stat->next;
 
-    while (stat != loopbodyend->stat_tail) {
-        if (stat->opc == Uclab) {
-            int length = stat->u.label.length;
+    while (phi_s0 != loopbodyend->stat_tail) {
+        if (phi_s0->opc == Uclab) {
+            int length = phi_s0->u.label.length;
 
-            for (i = 0; i < length; i++) {
-                stat = stat->next;
+            for (i = 0; i < length; i++)
+            {
+                phi_s0 = phi_s0->next;
             }
         } else {
-            if (arg1 && stat->opc == Ulab) {
-                if (curgraphnode->stat_head != NULL) {
+            if (arg1 && phi_s0->opc == Ulab) {
+                if (curgraphnode->stat_head != 0) {
                     curgraphnode->stat_tail = stattail;
                     codeimage();
-                    new_header_node(true);
+                    new_header_node(1);
                     if (arg2) {
                         curgraphnode->loop = loopbody->loop;
                     } else {
@@ -1945,11 +1965,10 @@ void post_loopblock(bool arg0, bool arg1, bool arg2) {
                     }
                 }
             }
-
             if (arg0) {
-                oneloopblockstmt(stat);
+                oneloopblockstmt(phi_s0);
             } else {
-                switch (stat->opc) {
+                switch (phi_s0->opc) {
                     case Uaos:
                     case Uchkt:
                     case Ufjp:
@@ -1975,31 +1994,25 @@ void post_loopblock(bool arg0, bool arg1, bool arg2) {
                     case Uxjp:
                     case Uirst:
                     case Uirsv:
-                        oneloopblockstmt(stat);
-                        break;
-
-                    default:
+                        oneloopblockstmt(phi_s0);
                         break;
                 }
             }
 
             if (arg1) {
-                switch (stat->opc) {
+                switch (phi_s0->opc) {
                     case Ufjp:
                     case Ulab:
                     case Uret:
                     case Utjp:
                     case Uujp:
-                        link_jump_in_loop(stat, arg2);
-                        break;
-
-                    default:
+                        link_jump_in_loop(phi_s0, arg2);
                         break;
                 }
             }
         }
 
-        stat = stat->next;
+        phi_s0 = phi_s0->next;
     }
 }
 
@@ -2013,7 +2026,7 @@ void termination_test(struct Statement *stat_s3, int unroll_times_local) {
     stattail->expr = oneloopblockexpr(stat_s3->expr, &sp24);
     stattail->expr = unroll_resetincr(stattail->expr, sp24);
     stattail->u.jp.incre = stat_s3->u.jp.incre * unroll_times_local;
-    stattail->u.jp.iter_initial_value = stat_s3->u.jp.iter_initial_value;
+    stattail->u.jp.unk20 = stat_s3->u.jp.unk20;
     stattail->u.jp.has_const_init = stat_s3->u.jp.has_const_init;
     stattail->u.jp.loop_if_true = stat_s3->u.jp.loop_if_true;
     stattail->u.jp.target_blockno = stat_s3->u.jp.target_blockno;
@@ -2034,9 +2047,9 @@ int expr_instr(struct Expression *expr) {
         case isrconst:
             return 0;
         case issvar:
-            return expr_instr(expr->data.isvar_issvar.outer_stack) + 1;
+            return expr_instr(expr->data.isvar_issvar.unk24) + 1;
         case isilda:
-            return expr_instr(expr->data.islda_isilda.outer_stack) + 1;
+            return expr_instr(expr->data.islda_isilda.unk34) + 1;
         case isop:
             ret = expr_instr(expr->data.isop.op1) + 1;
             if (optab[expr->data.isop.opc].is_binary_op != 0) {
@@ -2101,10 +2114,11 @@ int estimate_instr(struct Graphnode *body, struct Graphnode *bodyend) {
 
         if (stat->opc == Uisst || stat->opc == Ustr) {
             ret += expr_instr(stat->expr->data.isvar_issvar.assigned_value);
-        } else if (stat->opc != Uret && stat->opc != Uujp) {
-            ret += expr_instr(stat->expr);
+        } else {
+            if (stat->opc != Uret && stat->opc != Uujp) {
+                ret += expr_instr(stat->expr);
+            }
         }
-
         switch (stat->opc) {
             case Uisst:
             case Uistr:
@@ -2180,7 +2194,6 @@ struct Expression *form_bop(Uopcode opc, struct Expression *left, struct Express
             binop = binop->next;
         }
     }
-
     if (!found) {
         binop = appendchain(hash);
         binop->type = isop;
@@ -2194,15 +2207,15 @@ struct Expression *form_bop(Uopcode opc, struct Expression *left, struct Express
         binop->data.isop.op1 = left;
         binop->data.isop.op2 = right;
         binop->data.isop.aux2.v1.overflow_attr = 0;
-        binop->data.isop.temploc = 0;
+        binop->data.isop.unk30 = 0;
         binop->unk4 = 0;
-        binop->visited = 0;
+        binop->unk5 = 0;
         binop->count = 1;
         binop->graphnode = curgraphnode;
 
         if (opc == Uneq) {
-            binop->data.isop.aux.unk38_trep = NULL;
-            binop->data.isop.aux2.unk3C_trep = NULL;
+            binop->data.isop.aux.unk38_int = 0;
+            binop->data.isop.aux2.v2.unk3C = 0;
         }
     } else {
         increasecount(binop);
@@ -2259,8 +2272,8 @@ struct Expression *form_rem(struct Expression *expr, int arg1) {
         sp34->data.isop.op2 = sp30;
         sp34->count = 1;
         sp34->data.isop.aux2.v1.overflow_attr = 0;
-        sp34->data.isop.temploc = 0;
-        sp34->visited = 0;
+        sp34->data.isop.unk30 = 0;
+        sp34->unk5 = 0;
         sp34->unk4 = 0;
         sp34->graphnode = curgraphnode;
     } else {
@@ -2292,8 +2305,8 @@ struct Expression *form_rem(struct Expression *expr, int arg1) {
             sp30->data.isop.aux.cvtfrom = sp34->datatype;
             sp30->count = 1;
             sp30->data.isop.aux2.v1.overflow_attr = 0;
-            sp30->data.isop.temploc = 0;
-            sp30->visited = 0;
+            sp30->data.isop.unk30 = 0;
+            sp30->unk5 = 0;
             sp30->unk4 = 0;
             sp30->graphnode = curgraphnode;
         } else {
@@ -2341,13 +2354,13 @@ struct Expression *form_neq0(struct Expression *expr) {
         }
         neq0->data.isop.op1 = expr;
         neq0->data.isop.op2 = zero;
-        neq0->data.isop.aux2.v1.overflow_attr = false;
+        neq0->data.isop.aux2.v1.overflow_attr = 0;
         neq0->count = 1;
-        neq0->data.isop.temploc = 0;
-        neq0->visited = 0;
+        neq0->data.isop.unk30 = 0;
+        neq0->unk5 = 0;
         neq0->unk4 = 0;
-        neq0->data.isop.aux.unk38_trep = NULL;
-        neq0->data.isop.aux2.unk3C_trep = NULL;
+        neq0->data.isop.aux.unk38_int = 0;
+        neq0->data.isop.aux2.v2.unk3C = 0;
         neq0->graphnode = curgraphnode;
     } else {
         increasecount(neq0);
@@ -2387,8 +2400,8 @@ struct Expression *form_neg(struct Expression *expr) {
         neg->data.isop.op2 = NULL;
         neg->count = 1;
         neg->data.isop.aux2.v1.overflow_attr = 0;
-        neg->data.isop.temploc = 0;
-        neg->visited = 0;
+        neg->data.isop.unk30 = 0;
+        neg->unk5 = 0;
         neg->unk4 = 0;
         neg->graphnode = curgraphnode;
     } else {
@@ -2403,19 +2416,19 @@ struct Expression *form_neg(struct Expression *expr) {
 */
 struct Expression *str_to_temporary(int addr, struct Expression *store) {
     struct Expression *ret;
-    struct VariableLocation loc;
+    struct VariableInner var;
 
-    loc.addr = addr;
-    loc.blockno = curblk;
-    loc.memtype = Mmt;
-    ret = appendchain(isvarhash(loc));
+    var.addr = addr;
+    var.blockno = curblk;
+    var.memtype = Mmt;
+    ret = appendchain(isvarhash(var));
 
-    ret->data.isvar_issvar.veqv = false;
-    ret->data.isvar_issvar.vreg = true;
-    ret->initialVal = false;
+    ret->data.isvar_issvar.unk21 = 0;
+    ret->data.isvar_issvar.unk22 = 1;
+    ret->unk3 = 0;
     ret->type = isvar;
     ret->graphnode = curgraphnode;
-    ret->data.isvar_issvar.location = loc;
+    ret->data.isvar_issvar.var_data = var;
     if (store->type == isop) {
         ret->datatype = store->data.isop.datatype;
     } else {
@@ -2423,28 +2436,28 @@ struct Expression *str_to_temporary(int addr, struct Expression *store) {
     }
     ret->data.isvar_issvar.size = sizeoftyp(ret->datatype);
     ret->count = 0;
-    ret->data.isvar_issvar.copy = NULL;
-    ret->data.isvar_issvar.outer_stack = NULL;
-    ret->killed = 0;
-    ret->data.isvar_issvar.is_volatile = false;
-    ret->data.isvar_issvar.location.level = curlevel;
+    ret->data.isvar_issvar.unk30 = NULL;
+    ret->data.isvar_issvar.unk24 = NULL;
+    ret->unk2 = 0;
+    ret->data.isvar_issvar.is_volatile = 0;
+    ret->data.isvar_issvar.var_data.level = curlevel;
 
     extendstat(Ustr);
     ret->data.isvar_issvar.assigned_value = store;
 
-    stattail->outpar = false;
+    stattail->unk3 = 0;
     stattail->expr = ret;
-    stattail->u.store.lval_ant = true;
-    stattail->u.store.store_ant = true;
-    stattail->u.store.lval_av = true;
-    stattail->u.store.store_av = true;
-    stattail->is_increment = false;
-    stattail->u.store.u.str.srcands = NULL;
-    stattail->u.store.u.str.recurs = NULL;
-    stattail->suppressed_iv = false;
+    stattail->u.store.unk1C = 1;
+    stattail->u.store.unk1E = 1;
+    stattail->u.store.unk1D = 1;
+    stattail->u.store.unk1F = 1;
+    stattail->unk1 = 0;
+    stattail->u.store.u.str.unk2C = 0;
+    stattail->u.store.u.str.unk30 = 0;
+    stattail->unk2 = 0;
     ret->data.isvar_issvar.assignment = stattail;
     appendstorelist();
-    curgraphnode->varlisttail->unk8 = true;
+    curgraphnode->varlisttail->unk8 = 1;
     return ret;
 }
 
@@ -2471,13 +2484,13 @@ void reset_images(struct Expression *expr) {
             return;
 
         case isilda:
-            reset_images(expr->data.islda_isilda.outer_stack);
+            reset_images(expr->data.islda_isilda.unk34);
             return;
 
         case isvar:
         case issvar:
             if (expr->type == issvar) {
-                reset_images(expr->data.isvar_issvar.outer_stack);
+                reset_images(expr->data.isvar_issvar.unk24);
             }
             return;
 
@@ -2524,7 +2537,7 @@ void loopunroll(void) {
     unsigned int limit_s0;
     unsigned int loopEstimate;
     int i;
-    int tempAddr;
+    int phi_s2_8;
     int phi_s0_9;
     struct GraphnodeList *nodelist;
     int rem;
@@ -2551,7 +2564,7 @@ void loopunroll(void) {
                         if (loopCond->data.isop.op2->type == isconst) {
                             range = loopCond->data.isop.op2->data.isconst.number.intval;
                             incre = loopbody->stat_tail->u.jp.incre;
-                            rem = (range - loopbody->stat_tail->u.jp.iter_initial_value->data.isconst.number.intval - 1) % incre;
+                            rem = (range - loopbody->stat_tail->u.jp.unk20->data.isconst.number.intval - 1) % incre;
 
                             if ((rem ^ incre) < 0) {
                                 rem += incre;
@@ -2559,9 +2572,9 @@ void loopunroll(void) {
 
                             loopbody->stat_tail->expr = change_to_const_eq(loopbody->stat_tail->u.jp.loop_if_true, loopCond, loopbody, incre - rem - 1);
                         } else {
-                            range = loopCond->data.isop.op2->data.islda_isilda.offset;
+                            range = loopCond->data.isop.op2->data.islda_isilda.addr;
                             incre = loopbody->stat_tail->u.jp.incre;
-                            rem = (range - loopbody->stat_tail->u.jp.iter_initial_value->data.isconst.number.intval - 1) % incre;
+                            rem = (range - loopbody->stat_tail->u.jp.unk20->data.isconst.number.intval - 1) % incre;
                             if ((rem ^ incre) < 0) {
                                 rem += incre;
                             }
@@ -2571,15 +2584,15 @@ void loopunroll(void) {
                         if (loopCond->data.isop.op2->type == isconst) {
                             range = loopCond->data.isop.op2->data.isconst.number.intval;
                             incre = loopbody->stat_tail->u.jp.incre;
-                            rem = (loopbody->stat_tail->u.jp.iter_initial_value->data.isconst.number.intval - range) % -incre;
+                            rem = (loopbody->stat_tail->u.jp.unk20->data.isconst.number.intval - range) % -incre;
                             if ((rem ^ -incre) < 0) {
                                 rem -= incre;
                             }
                             loopbody->stat_tail->expr = change_to_const_eq(loopbody->stat_tail->u.jp.loop_if_true, loopCond, loopbody, incre + rem);
                         } else {
-                            range = loopCond->data.isop.op2->data.islda_isilda.offset;
+                            range = loopCond->data.isop.op2->data.islda_isilda.addr;
                             incre = loopbody->stat_tail->u.jp.incre;
-                            rem = (loopbody->stat_tail->u.jp.iter_initial_value->data.isconst.number.intval - range) % -incre;
+                            rem = (loopbody->stat_tail->u.jp.unk20->data.isconst.number.intval - range) % -incre;
                             if ((rem ^ -incre) < 0) {
                                 rem -= incre;
                             }
@@ -2594,8 +2607,8 @@ void loopunroll(void) {
                         node_s1 = loopbody->successors->next->graphnode;
                     }
 
-                    if (node_s1->unk5 == canunroll) {
-                        node_s1->unk5 = loopfirstbb;      // loopfirstbb
+                    if (node_s1->unk5 == 2) {
+                        node_s1->unk5 = 1;      // loopfirstbb
                     }
                 }
             } else {
@@ -2623,7 +2636,7 @@ void loopunroll(void) {
                 switch (stat_s3->opc) {
                     case Uisst:
                     case Ustr:
-                        reset_images(stat_s3->expr->data.isvar_issvar.assigned_value);
+                        reset_images(stat_s3->expr->data.isop.unk34);
                         reset_images(stat_s3->expr);
                         if (stat_s3->opc == Uisst) {
                             reset_images(stat_s3->u.store.expr);
@@ -2738,7 +2751,7 @@ void loopunroll(void) {
                     }
 
                     if (stat_s0->opc == Uisst || stat_s0->opc == Ustr) {
-                        decreasecount(stat_s0->expr->data.isvar_issvar.assigned_value);
+                        decreasecount(stat_s0->expr->data.isop.unk34);
                         if (stat_s0->expr->ichain != NULL) {
                             fixcorr(stat_s0->expr);
                             stat_s0->expr->ichain = NULL;
@@ -2796,9 +2809,6 @@ void loopunroll(void) {
                                     case Uirsv:
                                         decreasecount(stat_s0->u.store.expr);
                                         break;
-
-                                    default:
-                                        break;
                                 }
                                 break;
                         }
@@ -2835,7 +2845,7 @@ void loopunroll(void) {
 
     if (unroll_times >= 2) {
         for (loopbody = graphhead; loopbody != NULL; loopbody = loopbody->next) {
-            if (loopbody->unk5 != canunroll) { // canunroll
+            if (loopbody->unk5 != 2) { // canunroll
                 continue;
             }
 
@@ -2865,7 +2875,7 @@ void loopunroll(void) {
                 continue;
             }
 
-            if (!stat_s3->u.jp.has_const_init || (loopCond->data.isop.op2->data.isconst.number.intval - stat_s3->u.jp.iter_initial_value->data.isconst.number.intval) / stat_s3->u.jp.incre >= unroll_times) {
+            if (!stat_s3->u.jp.has_const_init || (loopCond->data.isop.op2->data.isconst.number.intval - stat_s3->u.jp.unk20->data.isconst.number.intval) / stat_s3->u.jp.incre >= unroll_times) {
                 loopheader = loopbody->predecessors->graphnode;
                 if (loopbodyend == loopheader) {
                     loopheader = loopbody->predecessors->next->graphnode;
@@ -2891,7 +2901,7 @@ void loopunroll(void) {
 
                 incr_stat = loopbody->stat_head;
                 while ((incr_stat->opc != Uisst && incr_stat->opc != Ustr)
-                        || !incr_stat->is_increment
+                        || incr_stat->unk1 == 0
                         || incr_stat->expr->ichain != i_var_inx) {
                     incr_stat = incr_stat->next;
                 }
@@ -2911,13 +2921,13 @@ void loopunroll(void) {
                     stattail = loopbody->stat_head->prev;
                     stattail->next = NULL;
 
-                    rem = ((loopCond->data.isop.op2->data.isconst.number.intval - stat_s3->u.jp.iter_initial_value->data.isconst.number.intval) / stat_s3->u.jp.incre) % unroll_times_local;
+                    rem = ((loopCond->data.isop.op2->data.isconst.number.intval - stat_s3->u.jp.unk20->data.isconst.number.intval) / stat_s3->u.jp.incre) % unroll_times_local;
                     if ((rem ^ unroll_times_local) < 0) {
                         rem += unroll_times_local;
                     }
 
                     if (rem != 0) {
-                        new_header_node(true);
+                        new_header_node(1);
                         curgraphnode->loop = loopbody->loop;
                         incr_amount = 0;
 
@@ -2955,7 +2965,7 @@ void loopunroll(void) {
                     curgraphnode->unk7 = 2;
                     curgraphnode->num = curstaticno++;
                     curgraphnode->loopdepth = node_s1->loopdepth;
-                    curgraphnode->frequency = node_s1->frequency;
+                    curgraphnode->unk2C = node_s1->unk2C;
                     curgraphnode->bvs.init.line = node_s1->bvs.init.line; // ?
                     curgraphnode->loop = node_s1->loop;
                     curgraphnode->next = node_s1;
@@ -2993,21 +3003,21 @@ void loopunroll(void) {
 
                     if (stack_reversed == 0) {
                         tempdisp += i_var_size;
-                        tempAddr = -tempdisp;
+                        phi_s2_8 = -(tempdisp + i_var_size);
                     } else {
-                        tempAddr = tempdisp;
                         tempdisp += i_var_size;
+                        phi_s2_8 = tempdisp;
                     }
 
-                    new_header_node(true);
+                    new_header_node(1);
                     curgraphnode->loop = loopbody->loop->outer;
                     incr_amount = 0;
                     expr_s0 = oneloopblockexpr(spAC, &spCC);
                     temp_expr = oneloopblockexpr(spA8, &spC8);
                     if (stat_s3->u.jp.incre > 0) {
-                        expr_s0 = str_to_temporary(tempAddr, form_rem(unroll_resetincr(form_bop(Usub, expr_s0, temp_expr), spCC - spC8), unroll_times_local * stat_s3->u.jp.incre));
+                        expr_s0 = str_to_temporary(phi_s2_8, form_rem(unroll_resetincr(form_bop(Usub, expr_s0, temp_expr), spCC - spC8), unroll_times_local * stat_s3->u.jp.incre));
                     } else {
-                        expr_s0 = str_to_temporary(tempAddr, form_neg(form_rem(unroll_resetincr(form_bop(Usub, temp_expr, expr_s0), spC8 - spCC), unroll_times_local * -stat_s3->u.jp.incre)));
+                        expr_s0 = str_to_temporary(phi_s2_8, form_neg(form_rem(unroll_resetincr(form_bop(Usub, temp_expr, expr_s0), spC8 - spCC), unroll_times_local * -stat_s3->u.jp.incre)));
                     }
 
                     extendstat(Ufjp);
@@ -3019,19 +3029,19 @@ void loopunroll(void) {
                     spB4 = maxlabnam;
                     curgraphnode->stat_tail = stattail;
                     codeimage();
-                    new_header_node(true);
+                    new_header_node(1);
                     curgraphnode->loop = loopbody->loop->outer;
                     expr_s0 = oneloopblockexpr(expr_s0, &spCC);
-                    expr_s0 = str_to_temporary(tempAddr, form_bop(Uadd, expr_s0, oneloopblockexpr(spA8, &spC8)));
+                    expr_s0 = str_to_temporary(phi_s2_8, form_bop(1, expr_s0, oneloopblockexpr(spA8, &spC8)));
                     curgraphnode->stat_tail = stattail;
                     codeimage();
-                    new_header_node(true);
+                    new_header_node(1);
                     curgraphnode->loop = loopbody->loop->outer;
                     sp88 = curgraphnode;
                     curgraphnode->loopdepth = loopbody->loopdepth;
-                    curgraphnode->frequency = loopbody->frequency;
-                    curgraphnode->unk5 = loopfirstbb;
-                    curgraphnode->in_rolled_preloop = 1;
+                    curgraphnode->unk2C = loopbody->unk2C;
+                    curgraphnode->unk5 = 1;
+                    curgraphnode->unkBb8 = 1;
                     curgraphnode->bvs.init.line = loopbody->bvs.init.line;
                     if (unroll_times_local != 2) {
                         maxlabnam++;
@@ -3058,10 +3068,10 @@ void loopunroll(void) {
 
                     curgraphnode->stat_tail = stattail;
                     codeimage();
-                    new_header_node(true);
+                    new_header_node(1);
                     curgraphnode->loop = loopbody->loop->outer;
-                    curgraphnode->in_rolled_preloop = 0;
-                    curgraphnode->frequency = node_s1->frequency;
+                    curgraphnode->unkBb8 = 0;
+                    curgraphnode->unk2C = node_s1->unk2C;
                     if (stat_s3->opc == Ufjp) {
                         extendstat(Utjp);
                     } else {
@@ -3075,10 +3085,10 @@ void loopunroll(void) {
                     create_edge(curgraphnode, node_s1);
                     curgraphnode->stat_tail = stattail;
                     codeimage();
-                    new_header_node(true);
+                    new_header_node(1);
                     curgraphnode->blockno = spB4;
                     curgraphnode->loop = loopbody->loop->outer;
-                    curgraphnode->frequency = node_s1->frequency;
+                    curgraphnode->unk2C = node_s1->unk2C;
                     extendstat(Ulab);
                     stattail->u.label.flags = 0;
                     stattail->u.label.length = 0;
@@ -3089,12 +3099,12 @@ void loopunroll(void) {
                 }
 
 
-                new_header_node(true);
+                new_header_node(1);
                 curgraphnode->loop = loopbody->loop;
                 sp88 = curgraphnode;
                 curgraphnode->loopdepth = loopbody->loopdepth;
-                curgraphnode->frequency = loopbody->frequency;
-                curgraphnode->unk5 = canunroll;
+                curgraphnode->unk2C = loopbody->unk2C;
+                curgraphnode->unk5 = 2;
                 curgraphnode->bvs.init.line = loopbody->bvs.init.line;
                 extendstat(Ulab);
                 stattail->u.label.flags = loopbody->stat_head->u.label.flags;
@@ -3120,7 +3130,7 @@ void loopunroll(void) {
                 for (phi_s0_9 = 2; phi_s0_9 < unroll_times_local; phi_s0_9++) {
                     new_set_of_labels();
                     pre_loopblock(0, 1);
-                    incr_amount += stat_s3->u.jp.incre;
+                    incr_amount = incr_amount + stat_s3->u.jp.incre;
                     post_loopblock(0, 1, 1);
                 }
 
@@ -3129,7 +3139,7 @@ void loopunroll(void) {
                 oneloopblockstmt(incr_stat);
                 incr_amount = 0;
                 post_loopblock(0, 1, 1);
-                if (!stat_s3->u.jp.has_const_init || ((loopCond->data.isop.op2->data.isconst.number.intval - stat_s3->u.jp.iter_initial_value->data.isconst.number.intval) / stat_s3->u.jp.incre) >= unroll_times_local * 2) {
+                if (!stat_s3->u.jp.has_const_init || ((loopCond->data.isop.op2->data.isconst.number.intval - stat_s3->u.jp.unk20->data.isconst.number.intval) / stat_s3->u.jp.incre) >= unroll_times_local * 2) {
                     termination_test(stat_s3, unroll_times_local);
                     create_edge(curgraphnode, sp88);
                 }
@@ -3150,7 +3160,7 @@ void loopunroll(void) {
                 stat_s3 = loopbody->stat_head;
                 do {
                     if (stat_s3->opc == Uisst || stat_s3->opc == Ustr) {
-                        decreasecount(stat_s3->expr->data.isvar_issvar.assigned_value);
+                        decreasecount(stat_s3->expr->data.isop.unk34);
                         if (stat_s3->opc == Uisst) {
                             decreasecount(stat_s3->u.store.expr);
                         }
@@ -3183,7 +3193,6 @@ void loopunroll(void) {
 
                             default:
                                 decreasecount(stat_s3->expr);
-                                break;
                         }
 
                         switch (stat_s3->opc) {
@@ -3253,7 +3262,7 @@ void loopunroll(void) {
         }
     }
 
-    if (dbugno != 0) {
+    if (dbugno) {
         if (proc_to_print[0] == ' ' || at_proc_to_print) {
             write_string(list.c_file, "   flow graph for " , 18, 18);
             write_string(list.c_file, entnam0, 1024, entnam0len);
@@ -3289,303 +3298,674 @@ void loopunroll(void) {
     }
 }
 
-/*
-004737E0 par_to_str
-*/
-static struct Expression *func_00473504(struct Statement *par, unsigned short varhash, struct VariableLocation loc) {
-    bool veqv;
-    struct Expression *var;
-    bool found;
-    bool vreg;
-    bool unk3;
+__asm__(R""(
+.set noat
+.set noreorder
+    .type func_00473504, @function
+func_00473504:
+    # 004737E0 par_to_str
+/* 00473504 3C1C0FBA */  .cpload $t9
+/* 00473508 279C6D8C */  
+/* 0047350C 0399E021 */  
+/* 00473510 27BDFFC0 */  addiu $sp, $sp, -0x40
+/* 00473514 AFBF003C */  sw    $ra, 0x3c($sp)
+/* 00473518 AFBC0038 */  sw    $gp, 0x38($sp)
+/* 0047351C AFB70034 */  sw    $s7, 0x34($sp)
+/* 00473520 AFB60030 */  sw    $s6, 0x30($sp)
+/* 00473524 AFB5002C */  sw    $s5, 0x2c($sp)
+/* 00473528 AFB40028 */  sw    $s4, 0x28($sp)
+/* 0047352C AFB30024 */  sw    $s3, 0x24($sp)
+/* 00473530 AFB20020 */  sw    $s2, 0x20($sp)
+/* 00473534 AFB1001C */  sw    $s1, 0x1c($sp)
+/* 00473538 AFB00018 */  sw    $s0, 0x18($sp)
+/* 0047353C AFA40040 */  sw    $a0, 0x40($sp)
+/* 00473540 8C430000 */  lw    $v1, ($v0)
+/* 00473544 944EFFE0 */  lhu   $t6, -0x20($v0)
+/* 00473548 8F988DF8 */  lw     $t8, %got(table)($gp)
+/* 0047354C 90680014 */  lbu   $t0, 0x14($v1)
+/* 00473550 000E7880 */  sll   $t7, $t6, 2
+/* 00473554 2401000E */  li    $at, 14
+/* 00473558 01F8C821 */  addu  $t9, $t7, $t8
+/* 0047355C 0040A025 */  move  $s4, $v0
+/* 00473560 8F300000 */  lw    $s0, ($t9)
+/* 00473564 00008825 */  move  $s1, $zero
+/* 00473568 0000B025 */  move  $s6, $zero
+/* 0047356C 0000B825 */  move  $s7, $zero
+/* 00473570 15010008 */  bne   $t0, $at, .L00473594
+/* 00473574 00009025 */   move  $s2, $zero
+/* 00473578 8F898B34 */  lw     $t1, %got(int_reg_size)($gp)
+/* 0047357C 906A0015 */  lbu   $t2, 0x15($v1)
+/* 00473580 8D290000 */  lw    $t1, ($t1)
+/* 00473584 012A082A */  slt   $at, $t1, $t2
+/* 00473588 10200002 */  beqz  $at, .L00473594
+/* 0047358C 00000000 */   nop   
+/* 00473590 24120001 */  li    $s2, 1
+.L00473594:
+/* 00473594 16400034 */  bnez  $s2, .L00473668
+/* 00473598 00000000 */   nop   
+/* 0047359C 12000032 */  beqz  $s0, .L00473668
+/* 004735A0 24130003 */   li    $s3, 3
+/* 004735A4 8F9589B4 */  lw     $s5, %got(curgraphnode)($gp)
+/* 004735A8 920B0000 */  lbu   $t3, ($s0)
+.L004735AC:
+/* 004735AC 166B0025 */  bne   $s3, $t3, .L00473644
+/* 004735B0 00000000 */   nop   
+/* 004735B4 8E040028 */  lw    $a0, 0x28($s0)
+/* 004735B8 8E05002C */  lw    $a1, 0x2c($s0)
+/* 004735BC 8F99860C */  lw    $t9, %call16(addreq)($gp)
+/* 004735C0 AFA40000 */  sw    $a0, ($sp)
+/* 004735C4 AFA50004 */  sw    $a1, 4($sp)
+/* 004735C8 8E86FFE4 */  lw    $a2, -0x1c($s4)
+/* 004735CC AFA60008 */  sw    $a2, 8($sp)
+/* 004735D0 8E87FFE8 */  lw    $a3, -0x18($s4)
+/* 004735D4 0320F809 */  jalr  $t9
+/* 004735D8 AFA7000C */   sw    $a3, 0xc($sp)
+/* 004735DC 10400019 */  beqz  $v0, .L00473644
+/* 004735E0 8FBC0038 */   lw    $gp, 0x38($sp)
+/* 004735E4 92180021 */  lbu   $t8, 0x21($s0)
+/* 004735E8 53000004 */  beql  $t8, $zero, .L004735FC
+/* 004735EC 8EB90000 */   lw    $t9, ($s5)
+/* 004735F0 10000014 */  b     .L00473644
+/* 004735F4 24120001 */   li    $s2, 1
+/* 004735F8 8EB90000 */  lw    $t9, ($s5)
+.L004735FC:
+/* 004735FC 8E080010 */  lw    $t0, 0x10($s0)
+/* 00473600 03281826 */  xor   $v1, $t9, $t0
+/* 00473604 2C630001 */  sltiu $v1, $v1, 1
+/* 00473608 10600003 */  beqz  $v1, .L00473618
+/* 0047360C 00601025 */   move  $v0, $v1
+/* 00473610 92020002 */  lbu   $v0, 2($s0)
+/* 00473614 2C420001 */  sltiu $v0, $v0, 1
+.L00473618:
+/* 00473618 92090022 */  lbu   $t1, 0x22($s0)
+/* 0047361C 305100FF */  andi  $s1, $v0, 0xff
+/* 00473620 304A00FF */  andi  $t2, $v0, 0xff
+/* 00473624 11200002 */  beqz  $t1, .L00473630
+/* 00473628 00000000 */   nop   
+/* 0047362C 24170001 */  li    $s7, 1
+.L00473630:
+/* 00473630 15400004 */  bnez  $t2, .L00473644
+/* 00473634 00000000 */   nop   
+/* 00473638 10600002 */  beqz  $v1, .L00473644
+/* 0047363C 00000000 */   nop   
+/* 00473640 24160001 */  li    $s6, 1
+.L00473644:
+/* 00473644 16200002 */  bnez  $s1, .L00473650
+/* 00473648 00000000 */   nop   
+/* 0047364C 8E10001C */  lw    $s0, 0x1c($s0)
+.L00473650:
+/* 00473650 16200005 */  bnez  $s1, .L00473668
+/* 00473654 00000000 */   nop   
+/* 00473658 16400003 */  bnez  $s2, .L00473668
+/* 0047365C 00000000 */   nop   
+/* 00473660 5600FFD2 */  bnezl $s0, .L004735AC
+/* 00473664 920B0000 */   lbu   $t3, ($s0)
+.L00473668:
+/* 00473668 12200003 */  beqz  $s1, .L00473678
+/* 0047366C 8F9589B4 */   lw     $s5, %got(curgraphnode)($gp)
+/* 00473670 52400010 */  beql  $s2, $zero, .L004736B4
+/* 00473674 8FBF003C */   lw    $ra, 0x3c($sp)
+.L00473678:
+/* 00473678 8F998620 */  lw    $t9, %call16(appendchain)($gp)
+/* 0047367C 97A40042 */  lhu   $a0, 0x42($sp)
+/* 00473680 0320F809 */  jalr  $t9
+/* 00473684 00000000 */   nop   
+/* 00473688 8EAB0000 */  lw    $t3, ($s5)
+/* 0047368C 8FBC0038 */  lw    $gp, 0x38($sp)
+/* 00473690 324C00FF */  andi  $t4, $s2, 0xff
+/* 00473694 00408025 */  move  $s0, $v0
+/* 00473698 A0520021 */  sb    $s2, 0x21($v0)
+/* 0047369C 15800002 */  bnez  $t4, .L004736A8
+/* 004736A0 AC4B0010 */   sw    $t3, 0x10($v0)
+/* 004736A4 A0570022 */  sb    $s7, 0x22($v0)
+.L004736A8:
+/* 004736A8 2ECD0001 */  sltiu $t5, $s6, 1
+/* 004736AC A04D0003 */  sb    $t5, 3($v0)
+/* 004736B0 8FBF003C */  lw    $ra, 0x3c($sp)
+.L004736B4:
+/* 004736B4 02001025 */  move  $v0, $s0
+/* 004736B8 8FB00018 */  lw    $s0, 0x18($sp)
+/* 004736BC 8FB1001C */  lw    $s1, 0x1c($sp)
+/* 004736C0 8FB20020 */  lw    $s2, 0x20($sp)
+/* 004736C4 8FB30024 */  lw    $s3, 0x24($sp)
+/* 004736C8 8FB40028 */  lw    $s4, 0x28($sp)
+/* 004736CC 8FB5002C */  lw    $s5, 0x2c($sp)
+/* 004736D0 8FB60030 */  lw    $s6, 0x30($sp)
+/* 004736D4 8FB70034 */  lw    $s7, 0x34($sp)
+/* 004736D8 03E00008 */  jr    $ra
+/* 004736DC 27BD0040 */   addiu $sp, $sp, 0x40
 
-    var = table[varhash];
-    veqv = false;
-    found = false;
-    vreg = false;
-    unk3 = false;
-    if (par->u.par.dtype == Sdt && int_reg_size < par->u.par.size) {
-        veqv = true;
-    }
+    .type func_004736E0, @function
+func_004736E0:
+    # 004737E0 par_to_str
+/* 004736E0 3C1C0FBA */  .cpload $t9
+/* 004736E4 279C6BB0 */  
+/* 004736E8 0399E021 */  
+/* 004736EC 27BDFFD0 */  addiu $sp, $sp, -0x30
+/* 004736F0 AFB00018 */  sw    $s0, 0x18($sp)
+/* 004736F4 00C08025 */  move  $s0, $a2
+/* 004736F8 AFBF0024 */  sw    $ra, 0x24($sp)
+/* 004736FC AFBC0020 */  sw    $gp, 0x20($sp)
+/* 00473700 AFB1001C */  sw    $s1, 0x1c($sp)
+/* 00473704 AFA40030 */  sw    $a0, 0x30($sp)
+/* 00473708 AFA50034 */  sw    $a1, 0x34($sp)
+/* 0047370C 10C0002E */  beqz  $a2, .L004737C8
+/* 00473710 AFA2002C */   sw    $v0, 0x2c($sp)
+/* 00473714 27B10030 */  addiu $s1, $sp, 0x30
+/* 00473718 8E240000 */  lw    $a0, ($s1)
+.L0047371C:
+/* 0047371C 8F998430 */  lw    $t9, %call16(compareaddr)($gp)
+/* 00473720 AFA40000 */  sw    $a0, ($sp)
+/* 00473724 8E250004 */  lw    $a1, 4($s1)
+/* 00473728 AFA50004 */  sw    $a1, 4($sp)
+/* 0047372C 8E060004 */  lw    $a2, 4($s0)
+/* 00473730 AFA60008 */  sw    $a2, 8($sp)
+/* 00473734 8E070008 */  lw    $a3, 8($s0)
+/* 00473738 0320F809 */  jalr  $t9
+/* 0047373C AFA7000C */   sw    $a3, 0xc($sp)
+/* 00473740 304300FF */  andi  $v1, $v0, 0xff
+/* 00473744 2C610003 */  sltiu $at, $v1, 3
+/* 00473748 10200015 */  beqz  $at, .L004737A0
+/* 0047374C 8FBC0020 */   lw    $gp, 0x20($sp)
+/* 00473750 8F818044 */  lw    $at, %got(jtbl_1000DBD4)($gp)
+/* 00473754 00034080 */  sll   $t0, $v1, 2
+/* 00473758 00280821 */  addu  $at, $at, $t0
+/* 0047375C 8C28DBD4 */  lw    $t0, %lo(jtbl_1000DBD4)($at)
+/* 00473760 011C4021 */  addu  $t0, $t0, $gp
+/* 00473764 01000008 */  jr    $t0
+/* 00473768 00000000 */   nop   
+.L0047376C:
+/* 0047376C 92090001 */  lbu   $t1, 1($s0)
+/* 00473770 55200004 */  bnezl $t1, .L00473784
+/* 00473774 8FAA002C */   lw    $t2, 0x2c($sp)
+/* 00473778 10000014 */  b     .L004737CC
+/* 0047377C 8E02000C */   lw    $v0, 0xc($s0)
+/* 00473780 8FAA002C */  lw    $t2, 0x2c($sp)
+.L00473784:
+/* 00473784 8D4B0000 */  lw    $t3, ($t2)
+/* 00473788 10000010 */  b     .L004737CC
+/* 0047378C 91620015 */   lbu   $v0, 0x15($t3)
+.L00473790:
+/* 00473790 1000000B */  b     .L004737C0
+/* 00473794 8E100010 */   lw    $s0, 0x10($s0)
+.L00473798:
+/* 00473798 10000009 */  b     .L004737C0
+/* 0047379C 8E100014 */   lw    $s0, 0x14($s0)
+.L004737A0:
+/* 004737A0 8F9988A4 */  lw    $t9, %call16(caseerror)($gp)
+/* 004737A4 8F868044 */  lw    $a2, %got(RO_1000DBC9)($gp)
+/* 004737A8 24040001 */  li    $a0, 1
+/* 004737AC 24050AB8 */  li    $a1, 2744
+/* 004737B0 2407000A */  li    $a3, 10
+/* 004737B4 0320F809 */  jalr  $t9
+/* 004737B8 24C6DBC9 */   addiu $a2, %lo(RO_1000DBC9) # addiu $a2, $a2, -0x2437
+/* 004737BC 8FBC0020 */  lw    $gp, 0x20($sp)
+.L004737C0:
+/* 004737C0 5600FFD6 */  bnezl $s0, .L0047371C
+/* 004737C4 8E240000 */   lw    $a0, ($s1)
+.L004737C8:
+/* 004737C8 00001025 */  move  $v0, $zero
+.L004737CC:
+/* 004737CC 8FBF0024 */  lw    $ra, 0x24($sp)
+/* 004737D0 8FB00018 */  lw    $s0, 0x18($sp)
+/* 004737D4 8FB1001C */  lw    $s1, 0x1c($sp)
+/* 004737D8 03E00008 */  jr    $ra
+/* 004737DC 27BD0030 */   addiu $sp, $sp, 0x30
 
-    while (!found && !veqv && var != NULL) {
-        if (var->type == isvar && addreq(var->data.isvar_issvar.location, loc)) {
-            if (var->data.isvar_issvar.veqv) {
-                veqv = true;
-            } else {
-                found = curgraphnode == var->graphnode && !var->killed;
-
-                if (var->data.isvar_issvar.vreg) {
-                    vreg = true;
-                }
-                if (!found && curgraphnode == var->graphnode) {
-                    unk3 = true;
-                }
-            }
-        }
-
-        if (!found) {
-            var = var->next;
-        }
-    }
-
-    if (!found || veqv) {
-        var = appendchain(varhash);
-        var->data.isvar_issvar.veqv = veqv;
-        var->graphnode = curgraphnode;
-        if (!veqv) {
-            var->data.isvar_issvar.vreg = vreg;
-        }
-        var->initialVal = !unk3;
-    }
-    return var;
-}
-
-/*
-004737E0 par_to_str
-*/
-static int func_004736E0(struct VariableLocation loc, struct Variable *var, struct Statement *par) {
-    if (var == NULL) {
-        return 0;
-    }
-
-    while (var != NULL) {
-        switch (compareaddr(loc, var->location)) {
-            case 0:
-                if (!var->veqv) {
-                    return var->size;
-                }
-                return par->u.par.size;
-
-            case 1:
-                var = var->left;
-                break;
-
-            case 2:
-                var = var->right;
-                break;
-
-            default:
-                caseerror(1, 2744, "uoptroll.p", 10);
-                break;
-        }
-    }
-
-    return 0;
-}
-
-/*
-004761D0 tail_recursion
-*/
-void par_to_str(struct Statement *par, bool arg1, int disp) {
-    struct Expression *sp5C;
-    struct Expression *sp58;
-    struct Expression *sp54;
-    bool unk1C; // sp53
-    bool unk1E; // sp52
-    int sp4C = 0;
-    struct VariableLocation loc;
-    unsigned short hash;
-    int parsize;
-    int byte_offset;
-    struct Statement *sp30;
-
-    loc.blockno = curblk;
-    loc.memtype = Pmt;
-    loc.addr = par->u.par.loc;
-    parsize = func_004736E0(loc, curproc->vartree, par);
-    byte_offset = 0;
-
-    if (parsize == 0) {
-        if (!bigendian) {
-            return;
-        }
-        loc.addr += 2;
-        byte_offset = 2;
-        parsize = func_004736E0(loc, curproc->vartree, par);
-        if (parsize == 0) {
-            loc.addr += 1;
-            byte_offset = 3;
-            parsize = func_004736E0(loc, curproc->vartree, par);
-            if (parsize == 0) {
-                return;
-            }
-        }
-    }
-
-    if (arg1) {
-        loc.memtype = Mmt;
-        loc.addr = disp + byte_offset;
-    }
-
-    sp54 = unroll_resetincr(oneloopblockexpr(par->expr, &sp4C), sp4C);
-    hash = isvarhash(loc);
-    sp58 = func_00473504(par, hash, loc);
-
-    sp5C = sp58;
-    if (sp58->type != empty) {
-        if (sp58->data.isvar_issvar.assignment == NULL) {
-            sp58->killed = true;
-            sp5C = appendchain(sp58->table_index);
-            sp5C->graphnode = curgraphnode;
-            sp5C->data.isvar_issvar.vreg = sp58->data.isvar_issvar.vreg;
-            sp5C->initialVal = false;
-            sp5C->data.isvar_issvar.veqv = sp58->data.isvar_issvar.veqv;
-            unk1E = true;
-            unk1C = false;
-        } else if (sp58->data.isvar_issvar.assigned_value != NULL && sp58->data.isvar_issvar.assignment->u.store.lval_av) {
-            sp30 = sp58->data.isvar_issvar.assignment;
-            sp30->u.store.var_access_list_item->type = 0;
-            if (has_volt_ovfw(sp30->expr->data.isvar_issvar.assigned_value)) {
-                sp30->opc = Upop;
-                sp30->u.pop.dtype = sp58->datatype;
-                sp30->u.pop.unk15 = 0;
-                sp30->expr = sp30->expr->data.isvar_issvar.assigned_value;
-            } else {
-                decreasecount(sp30->expr->data.isvar_issvar.assigned_value);
-                sp30->opc = Unop;
-            }
-            unk1E = sp58->data.isvar_issvar.assignment->u.store.store_ant;
-            unk1C = sp58->data.isvar_issvar.assignment->u.store.lval_ant;
-        } else {
-            if (sp54 == sp58->data.isvar_issvar.assigned_value) {
-                decreasecount(sp54);
-                return;
-            }
-            sp58->killed = true;
-            sp58->data.isvar_issvar.assignment->u.store.store_av = false;
-            sp5C = appendchain(sp58->table_index);
-            sp5C->graphnode = curgraphnode;
-            sp5C->data.isvar_issvar.vreg = sp58->data.isvar_issvar.vreg;
-            sp5C->initialVal = false;
-            sp5C->data.isvar_issvar.veqv = sp58->data.isvar_issvar.veqv;
-            unk1E = false;
-            unk1C = false;
-        }
-    } else {
-        unk1E = true;
-        unk1C = true;
-    }
-
-    if (sp5C->type == empty) {
-        sp5C->type = isvar;
-        sp5C->data.isvar_issvar.location = loc;
-        sp5C->datatype = par->u.par.dtype;
-        sp5C->data.isvar_issvar.size = sizeoftyp(par->u.par.dtype);
-        if (parsize < sp5C->data.isvar_issvar.size) {
-            sp5C->data.isvar_issvar.size = parsize;
-        }
-
-        sp5C->initialVal = false;
-        sp5C->count = 0;
-        sp5C->data.isvar_issvar.copy = NULL;
-        sp5C->data.isvar_issvar.outer_stack = NULL;
-        sp5C->data.isvar_issvar.location.level = curlevel;
-
-        if (!sp5C->data.isvar_issvar.veqv) {
-            sp5C->killed = false;
-        } else {
-            sp5C->killed = true;
-        }
-        sp5C->data.isvar_issvar.is_volatile = false;
-    }
-
-    if (sp5C->data.isvar_issvar.veqv) {
-        unk1C = false;
-        unk1E = false;
-    }
-
-    extendstat(Ustr);
-    sp5C->data.isvar_issvar.assigned_value = sp54;
-    stattail->outpar = 0;
-    stattail->expr = sp5C;
-    stattail->u.store.lval_ant = unk1C;
-    if (sp5C->data.isvar_issvar.vreg == 0 && unk1C != 0) {
-        stattail->u.store.lval_ant = strlkilled(stattail, curgraphnode->varlisthead) == 0;
-    }
-    stattail->u.store.store_ant = unk1E;
-    if (sp5C->data.isvar_issvar.vreg == 0 && unk1E != 0) {
-        stattail->u.store.store_ant = strskilled(stattail, curgraphnode->varlisthead) == 0;
-    }
-    stattail->is_increment = false;
-    stattail->u.store.u.str.srcands = NULL;
-    stattail->u.store.lval_av = !sp5C->data.isvar_issvar.veqv;
-    stattail->u.store.store_av = !sp5C->data.isvar_issvar.veqv;
-    stattail->u.store.u.str.recurs = NULL;
-    stattail->suppressed_iv = false;
-    sp5C->data.isvar_issvar.assignment = stattail;
-    if (sp5C->data.isvar_issvar.vreg == 0) {
-        strkillprev(stattail);
-    }
-    appendstorelist();
-    if (sp5C->data.isvar_issvar.vreg != 0) {
-        curgraphnode->varlisttail->unk8 = 1;
-    }
-}
+glabel par_to_str
+    .ent par_to_str
+    # 004761D0 tail_recursion
+/* 004737E0 3C1C0FBA */  .cpload $t9
+/* 004737E4 279C6AB0 */  
+/* 004737E8 0399E021 */  
+/* 004737EC 8F8E8980 */  lw     $t6, %got(curblk)($gp)
+/* 004737F0 27BDFFA0 */  addiu $sp, $sp, -0x60
+/* 004737F4 8FAF0048 */  lw    $t7, 0x48($sp)
+/* 004737F8 8DCE0000 */  lw    $t6, ($t6)
+/* 004737FC AFBF001C */  sw    $ra, 0x1c($sp)
+/* 00473800 000FC2C2 */  srl   $t8, $t7, 0xb
+/* 00473804 01D8C826 */  xor   $t9, $t6, $t8
+/* 00473808 001942C0 */  sll   $t0, $t9, 0xb
+/* 0047380C 010F4826 */  xor   $t1, $t0, $t7
+/* 00473810 AFA90048 */  sw    $t1, 0x48($sp)
+/* 00473814 93AA004A */  lbu   $t2, 0x4a($sp)
+/* 00473818 AFBC0018 */  sw    $gp, 0x18($sp)
+/* 0047381C AFA40060 */  sw    $a0, 0x60($sp)
+/* 00473820 314BFFF8 */  andi  $t3, $t2, 0xfff8
+/* 00473824 356C0002 */  ori   $t4, $t3, 2
+/* 00473828 AFA50064 */  sw    $a1, 0x64($sp)
+/* 0047382C AFA60068 */  sw    $a2, 0x68($sp)
+/* 00473830 A3AC004A */  sb    $t4, 0x4a($sp)
+/* 00473834 8C8E001C */  lw    $t6, 0x1c($a0)
+/* 00473838 27B80044 */  addiu $t8, $sp, 0x44
+/* 0047383C 8F8F8B6C */  lw     $t7, %got(curproc)($gp)
+/* 00473840 AFAE0044 */  sw    $t6, 0x44($sp)
+/* 00473844 8F040000 */  lw    $a0, ($t8)
+/* 00473848 8F998030 */  lw    $t9, %got(func_004736E0)($gp)
+/* 0047384C 8DEF0000 */  lw    $t7, ($t7)
+/* 00473850 AFA40000 */  sw    $a0, ($sp)
+/* 00473854 8F050004 */  lw    $a1, 4($t8)
+/* 00473858 273936E0 */  addiu $t9, %lo(func_004736E0) # addiu $t9, $t9, 0x36e0
+/* 0047385C 27A20060 */  addiu $v0, $sp, 0x60
+/* 00473860 AFA50004 */  sw    $a1, 4($sp)
+/* 00473864 0320F809 */  jalr  $t9
+/* 00473868 8DE60004 */   lw    $a2, 4($t7)
+/* 0047386C 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 00473870 AFA2003C */  sw    $v0, 0x3c($sp)
+/* 00473874 1440002E */  bnez  $v0, .L00473930
+/* 00473878 00001825 */   move  $v1, $zero
+/* 0047387C 8F898AF4 */  lw     $t1, %got(bigendian)($gp)
+/* 00473880 8FAA0044 */  lw    $t2, 0x44($sp)
+/* 00473884 24030002 */  li    $v1, 2
+/* 00473888 91290000 */  lbu   $t1, ($t1)
+/* 0047388C 27AC0044 */  addiu $t4, $sp, 0x44
+/* 00473890 27A20060 */  addiu $v0, $sp, 0x60
+/* 00473894 11200137 */  beqz  $t1, .L00473D74
+/* 00473898 254B0002 */   addiu $t3, $t2, 2
+/* 0047389C AFAB0044 */  sw    $t3, 0x44($sp)
+/* 004738A0 8D840000 */  lw    $a0, ($t4)
+/* 004738A4 8F988B6C */  lw     $t8, %got(curproc)($gp)
+/* 004738A8 8F998030 */  lw    $t9, %got(func_004736E0)($gp)
+/* 004738AC AFA40000 */  sw    $a0, ($sp)
+/* 004738B0 8D850004 */  lw    $a1, 4($t4)
+/* 004738B4 8F180000 */  lw    $t8, ($t8)
+/* 004738B8 273936E0 */  addiu $t9, %lo(func_004736E0) # addiu $t9, $t9, 0x36e0
+/* 004738BC AFA50004 */  sw    $a1, 4($sp)
+/* 004738C0 8F060004 */  lw    $a2, 4($t8)
+/* 004738C4 0320F809 */  jalr  $t9
+/* 004738C8 AFA30038 */   sw    $v1, 0x38($sp)
+/* 004738CC 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 004738D0 8FA30038 */  lw    $v1, 0x38($sp)
+/* 004738D4 14400016 */  bnez  $v0, .L00473930
+/* 004738D8 AFA2003C */   sw    $v0, 0x3c($sp)
+/* 004738DC 8FB90044 */  lw    $t9, 0x44($sp)
+/* 004738E0 27AF0044 */  addiu $t7, $sp, 0x44
+/* 004738E4 8F8B8B6C */  lw     $t3, %got(curproc)($gp)
+/* 004738E8 27280001 */  addiu $t0, $t9, 1
+/* 004738EC AFA80044 */  sw    $t0, 0x44($sp)
+/* 004738F0 8DE40000 */  lw    $a0, ($t7)
+/* 004738F4 8F998030 */  lw    $t9, %got(func_004736E0)($gp)
+/* 004738F8 8D6B0000 */  lw    $t3, ($t3)
+/* 004738FC AFA40000 */  sw    $a0, ($sp)
+/* 00473900 8DE50004 */  lw    $a1, 4($t7)
+/* 00473904 24630001 */  addiu $v1, $v1, 1
+/* 00473908 273936E0 */  addiu $t9, %lo(func_004736E0) # addiu $t9, $t9, 0x36e0
+/* 0047390C AFA50004 */  sw    $a1, 4($sp)
+/* 00473910 8D660004 */  lw    $a2, 4($t3)
+/* 00473914 AFA30038 */  sw    $v1, 0x38($sp)
+/* 00473918 0320F809 */  jalr  $t9
+/* 0047391C 27A20060 */   addiu $v0, $sp, 0x60
+/* 00473920 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 00473924 8FA30038 */  lw    $v1, 0x38($sp)
+/* 00473928 10400112 */  beqz  $v0, .L00473D74
+/* 0047392C AFA2003C */   sw    $v0, 0x3c($sp)
+.L00473930:
+/* 00473930 93AC0067 */  lbu   $t4, 0x67($sp)
+/* 00473934 93AD004A */  lbu   $t5, 0x4a($sp)
+/* 00473938 11800006 */  beqz  $t4, .L00473954
+/* 0047393C 31AEFFF8 */   andi  $t6, $t5, 0xfff8
+/* 00473940 8FB90068 */  lw    $t9, 0x68($sp)
+/* 00473944 35D80001 */  ori   $t8, $t6, 1
+/* 00473948 A3B8004A */  sb    $t8, 0x4a($sp)
+/* 0047394C 03234021 */  addu  $t0, $t9, $v1
+/* 00473950 AFA80044 */  sw    $t0, 0x44($sp)
+.L00473954:
+/* 00473954 8F99857C */  lw    $t9, %call16(oneloopblockexpr)($gp)
+/* 00473958 8FA20060 */  lw    $v0, 0x60($sp)
+/* 0047395C 27A5004C */  addiu $a1, $sp, 0x4c
+/* 00473960 0320F809 */  jalr  $t9
+/* 00473964 8C440004 */   lw    $a0, 4($v0)
+/* 00473968 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 0047396C 00402025 */  move  $a0, $v0
+/* 00473970 8FA5004C */  lw    $a1, 0x4c($sp)
+/* 00473974 8F998570 */  lw    $t9, %call16(unroll_resetincr)($gp)
+/* 00473978 0320F809 */  jalr  $t9
+/* 0047397C 00000000 */   nop   
+/* 00473980 AFA20054 */  sw    $v0, 0x54($sp)
+/* 00473984 27AF0044 */  addiu $t7, $sp, 0x44
+/* 00473988 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 0047398C 8DE40000 */  lw    $a0, ($t7)
+/* 00473990 8F99864C */  lw    $t9, %call16(isvarhash)($gp)
+/* 00473994 AFA40000 */  sw    $a0, ($sp)
+/* 00473998 8DE50004 */  lw    $a1, 4($t7)
+/* 0047399C 0320F809 */  jalr  $t9
+/* 004739A0 AFA50004 */   sw    $a1, 4($sp)
+/* 004739A4 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 004739A8 A7A20040 */  sh    $v0, 0x40($sp)
+/* 004739AC 3044FFFF */  andi  $a0, $v0, 0xffff
+/* 004739B0 8F998030 */  lw    $t9, %got(func_00473504)($gp)
+/* 004739B4 27A20060 */  addiu $v0, $sp, 0x60
+/* 004739B8 27393504 */  addiu $t9, %lo(func_00473504) # addiu $t9, $t9, 0x3504
+/* 004739BC 0320F809 */  jalr  $t9
+/* 004739C0 00000000 */   nop   
+/* 004739C4 904B0000 */  lbu   $t3, ($v0)
+/* 004739C8 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 004739CC 00403025 */  move  $a2, $v0
+/* 004739D0 11600062 */  beqz  $t3, .L00473B5C
+/* 004739D4 24050001 */   li    $a1, 1
+/* 004739D8 8C440038 */  lw    $a0, 0x38($v0)
+/* 004739DC 240C0001 */  li    $t4, 1
+/* 004739E0 54800015 */  bnezl $a0, .L00473A38
+/* 004739E4 8C430034 */   lw    $v1, 0x34($v0)
+/* 004739E8 8F998620 */  lw    $t9, %call16(appendchain)($gp)
+/* 004739EC A0CC0002 */  sb    $t4, 2($a2)
+/* 004739F0 94C40008 */  lhu   $a0, 8($a2)
+/* 004739F4 0320F809 */  jalr  $t9
+/* 004739F8 AFA60058 */   sw    $a2, 0x58($sp)
+/* 004739FC 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 00473A00 8FA30058 */  lw    $v1, 0x58($sp)
+/* 00473A04 00403025 */  move  $a2, $v0
+/* 00473A08 8F8D89B4 */  lw     $t5, %got(curgraphnode)($gp)
+/* 00473A0C 00002825 */  move  $a1, $zero
+/* 00473A10 24070001 */  li    $a3, 1
+/* 00473A14 8DAD0000 */  lw    $t5, ($t5)
+/* 00473A18 AC4D0010 */  sw    $t5, 0x10($v0)
+/* 00473A1C 906E0022 */  lbu   $t6, 0x22($v1)
+/* 00473A20 A04E0022 */  sb    $t6, 0x22($v0)
+/* 00473A24 90780021 */  lbu   $t8, 0x21($v1)
+/* 00473A28 A0400003 */  sb    $zero, 3($v0)
+/* 00473A2C 1000004C */  b     .L00473B60
+/* 00473A30 A0580021 */   sb    $t8, 0x21($v0)
+/* 00473A34 8C430034 */  lw    $v1, 0x34($v0)
+.L00473A38:
+/* 00473A38 50600029 */  beql  $v1, $zero, .L00473AE0
+/* 00473A3C 8FA50054 */   lw    $a1, 0x54($sp)
+/* 00473A40 9099001D */  lbu   $t9, 0x1d($a0)
+/* 00473A44 53200026 */  beql  $t9, $zero, .L00473AE0
+/* 00473A48 8FA50054 */   lw    $a1, 0x54($sp)
+/* 00473A4C 8CC30038 */  lw    $v1, 0x38($a2)
+/* 00473A50 8C680018 */  lw    $t0, 0x18($v1)
+/* 00473A54 A1000009 */  sb    $zero, 9($t0)
+/* 00473A58 8C6F0004 */  lw    $t7, 4($v1)
+/* 00473A5C 8F9986DC */  lw    $t9, %call16(has_volt_ovfw)($gp)
+/* 00473A60 8DE40034 */  lw    $a0, 0x34($t7)
+/* 00473A64 AFA6005C */  sw    $a2, 0x5c($sp)
+/* 00473A68 0320F809 */  jalr  $t9
+/* 00473A6C AFA30030 */   sw    $v1, 0x30($sp)
+/* 00473A70 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 00473A74 8FA30030 */  lw    $v1, 0x30($sp)
+/* 00473A78 1040000A */  beqz  $v0, .L00473AA4
+/* 00473A7C 8FA6005C */   lw    $a2, 0x5c($sp)
+/* 00473A80 24090067 */  li    $t1, 103
+/* 00473A84 A0690000 */  sb    $t1, ($v1)
+/* 00473A88 90CA0001 */  lbu   $t2, 1($a2)
+/* 00473A8C 8C6B0004 */  lw    $t3, 4($v1)
+/* 00473A90 A06A0014 */  sb    $t2, 0x14($v1)
+/* 00473A94 8D6C0034 */  lw    $t4, 0x34($t3)
+/* 00473A98 A0600015 */  sb    $zero, 0x15($v1)
+/* 00473A9C 1000000C */  b     .L00473AD0
+/* 00473AA0 AC6C0004 */   sw    $t4, 4($v1)
+.L00473AA4:
+/* 00473AA4 8C6D0004 */  lw    $t5, 4($v1)
+/* 00473AA8 8F99863C */  lw    $t9, %call16(decreasecount)($gp)
+/* 00473AAC 8DA40034 */  lw    $a0, 0x34($t5)
+/* 00473AB0 AFA6005C */  sw    $a2, 0x5c($sp)
+/* 00473AB4 0320F809 */  jalr  $t9
+/* 00473AB8 AFA30030 */   sw    $v1, 0x30($sp)
+/* 00473ABC 8FA30030 */  lw    $v1, 0x30($sp)
+/* 00473AC0 240E0060 */  li    $t6, 96
+/* 00473AC4 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 00473AC8 8FA6005C */  lw    $a2, 0x5c($sp)
+/* 00473ACC A06E0000 */  sb    $t6, ($v1)
+.L00473AD0:
+/* 00473AD0 9065001C */  lbu   $a1, 0x1c($v1)
+/* 00473AD4 10000022 */  b     .L00473B60
+/* 00473AD8 9067001E */   lbu   $a3, 0x1e($v1)
+/* 00473ADC 8FA50054 */  lw    $a1, 0x54($sp)
+.L00473AE0:
+/* 00473AE0 54A30008 */  bnel  $a1, $v1, .L00473B04
+/* 00473AE4 8CD90038 */   lw    $t9, 0x38($a2)
+/* 00473AE8 8F99863C */  lw    $t9, %call16(decreasecount)($gp)
+/* 00473AEC 00A02025 */  move  $a0, $a1
+/* 00473AF0 0320F809 */  jalr  $t9
+/* 00473AF4 00000000 */   nop   
+/* 00473AF8 1000009E */  b     .L00473D74
+/* 00473AFC 8FBC0018 */   lw    $gp, 0x18($sp)
+/* 00473B00 8CD90038 */  lw    $t9, 0x38($a2)
+.L00473B04:
+/* 00473B04 24180001 */  li    $t8, 1
+/* 00473B08 A0D80002 */  sb    $t8, 2($a2)
+/* 00473B0C A320001F */  sb    $zero, 0x1f($t9)
+/* 00473B10 8F998620 */  lw    $t9, %call16(appendchain)($gp)
+/* 00473B14 AFA60058 */  sw    $a2, 0x58($sp)
+/* 00473B18 94C40008 */  lhu   $a0, 8($a2)
+/* 00473B1C 0320F809 */  jalr  $t9
+/* 00473B20 00000000 */   nop   
+/* 00473B24 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 00473B28 8FA30058 */  lw    $v1, 0x58($sp)
+/* 00473B2C 00403025 */  move  $a2, $v0
+/* 00473B30 8F8889B4 */  lw     $t0, %got(curgraphnode)($gp)
+/* 00473B34 00002825 */  move  $a1, $zero
+/* 00473B38 00003825 */  move  $a3, $zero
+/* 00473B3C 8D080000 */  lw    $t0, ($t0)
+/* 00473B40 AC480010 */  sw    $t0, 0x10($v0)
+/* 00473B44 906F0022 */  lbu   $t7, 0x22($v1)
+/* 00473B48 A04F0022 */  sb    $t7, 0x22($v0)
+/* 00473B4C 90690021 */  lbu   $t1, 0x21($v1)
+/* 00473B50 A0400003 */  sb    $zero, 3($v0)
+/* 00473B54 10000002 */  b     .L00473B60
+/* 00473B58 A0490021 */   sb    $t1, 0x21($v0)
+.L00473B5C:
+/* 00473B5C 24070001 */  li    $a3, 1
+.L00473B60:
+/* 00473B60 90CA0000 */  lbu   $t2, ($a2)
+/* 00473B64 15400027 */  bnez  $t2, .L00473C04
+/* 00473B68 240B0003 */   li    $t3, 3
+/* 00473B6C A0CB0000 */  sb    $t3, ($a2)
+/* 00473B70 27AC0044 */  addiu $t4, $sp, 0x44
+/* 00473B74 8D8E0000 */  lw    $t6, ($t4)
+/* 00473B78 8FA20060 */  lw    $v0, 0x60($sp)
+/* 00473B7C 8F99865C */  lw    $t9, %call16(sizeoftyp)($gp)
+/* 00473B80 ACCE0028 */  sw    $t6, 0x28($a2)
+/* 00473B84 8D8D0004 */  lw    $t5, 4($t4)
+/* 00473B88 A3A70052 */  sb    $a3, 0x52($sp)
+/* 00473B8C AFA6005C */  sw    $a2, 0x5c($sp)
+/* 00473B90 ACCD002C */  sw    $t5, 0x2c($a2)
+/* 00473B94 90580014 */  lbu   $t8, 0x14($v0)
+/* 00473B98 A3A50053 */  sb    $a1, 0x53($sp)
+/* 00473B9C A0D80001 */  sb    $t8, 1($a2)
+/* 00473BA0 0320F809 */  jalr  $t9
+/* 00473BA4 90440014 */   lbu   $a0, 0x14($v0)
+/* 00473BA8 8FB9003C */  lw    $t9, 0x3c($sp)
+/* 00473BAC 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 00473BB0 93A50053 */  lbu   $a1, 0x53($sp)
+/* 00473BB4 0059082A */  slt   $at, $v0, $t9
+/* 00473BB8 8FA6005C */  lw    $a2, 0x5c($sp)
+/* 00473BBC 10200002 */  beqz  $at, .L00473BC8
+/* 00473BC0 93A70052 */   lbu   $a3, 0x52($sp)
+/* 00473BC4 0040C825 */  move  $t9, $v0
+.L00473BC8:
+/* 00473BC8 8F88897C */  lw     $t0, %got(curlevel)($gp)
+/* 00473BCC A0D90020 */  sb    $t9, 0x20($a2)
+/* 00473BD0 90CF0021 */  lbu   $t7, 0x21($a2)
+/* 00473BD4 8D080000 */  lw    $t0, ($t0)
+/* 00473BD8 A0C00003 */  sb    $zero, 3($a2)
+/* 00473BDC A4C00006 */  sh    $zero, 6($a2)
+/* 00473BE0 ACC00030 */  sw    $zero, 0x30($a2)
+/* 00473BE4 ACC00024 */  sw    $zero, 0x24($a2)
+/* 00473BE8 15E00003 */  bnez  $t7, .L00473BF8
+/* 00473BEC A0C8002F */   sb    $t0, 0x2f($a2)
+/* 00473BF0 10000003 */  b     .L00473C00
+/* 00473BF4 A0C00002 */   sb    $zero, 2($a2)
+.L00473BF8:
+/* 00473BF8 24090001 */  li    $t1, 1
+/* 00473BFC A0C90002 */  sb    $t1, 2($a2)
+.L00473C00:
+/* 00473C00 A0C00023 */  sb    $zero, 0x23($a2)
+.L00473C04:
+/* 00473C04 90CA0021 */  lbu   $t2, 0x21($a2)
+/* 00473C08 2404007B */  li    $a0, 123
+/* 00473C0C 11400003 */  beqz  $t2, .L00473C1C
+/* 00473C10 00000000 */   nop   
+/* 00473C14 00002825 */  move  $a1, $zero
+/* 00473C18 00003825 */  move  $a3, $zero
+.L00473C1C:
+/* 00473C1C 8F998658 */  lw    $t9, %call16(extendstat)($gp)
+/* 00473C20 A3A50053 */  sb    $a1, 0x53($sp)
+/* 00473C24 AFA6005C */  sw    $a2, 0x5c($sp)
+/* 00473C28 0320F809 */  jalr  $t9
+/* 00473C2C A3A70052 */   sb    $a3, 0x52($sp)
+/* 00473C30 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 00473C34 8FA6005C */  lw    $a2, 0x5c($sp)
+/* 00473C38 8FAB0054 */  lw    $t3, 0x54($sp)
+/* 00473C3C 8F8489C4 */  lw     $a0, %got(stattail)($gp)
+/* 00473C40 93A50053 */  lbu   $a1, 0x53($sp)
+/* 00473C44 ACCB0034 */  sw    $t3, 0x34($a2)
+/* 00473C48 8C840000 */  lw    $a0, ($a0)
+/* 00473C4C 93A70052 */  lbu   $a3, 0x52($sp)
+/* 00473C50 A0800003 */  sb    $zero, 3($a0)
+/* 00473C54 AC860004 */  sw    $a2, 4($a0)
+/* 00473C58 A085001C */  sb    $a1, 0x1c($a0)
+/* 00473C5C 90CC0022 */  lbu   $t4, 0x22($a2)
+/* 00473C60 55800012 */  bnezl $t4, .L00473CAC
+/* 00473C64 A087001E */   sb    $a3, 0x1e($a0)
+/* 00473C68 50A00010 */  beql  $a1, $zero, .L00473CAC
+/* 00473C6C A087001E */   sb    $a3, 0x1e($a0)
+/* 00473C70 8F8D89B4 */  lw     $t5, %got(curgraphnode)($gp)
+/* 00473C74 8F9983C8 */  lw    $t9, %call16(strlkilled)($gp)
+/* 00473C78 8DAD0000 */  lw    $t5, ($t5)
+/* 00473C7C 8DA50024 */  lw    $a1, 0x24($t5)
+/* 00473C80 A3A70052 */  sb    $a3, 0x52($sp)
+/* 00473C84 0320F809 */  jalr  $t9
+/* 00473C88 AFA6005C */   sw    $a2, 0x5c($sp)
+/* 00473C8C 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 00473C90 2C4E0001 */  sltiu $t6, $v0, 1
+/* 00473C94 8FA6005C */  lw    $a2, 0x5c($sp)
+/* 00473C98 8F8489C4 */  lw     $a0, %got(stattail)($gp)
+/* 00473C9C 93A70052 */  lbu   $a3, 0x52($sp)
+/* 00473CA0 8C840000 */  lw    $a0, ($a0)
+/* 00473CA4 A08E001C */  sb    $t6, 0x1c($a0)
+/* 00473CA8 A087001E */  sb    $a3, 0x1e($a0)
+.L00473CAC:
+/* 00473CAC 90D80022 */  lbu   $t8, 0x22($a2)
+/* 00473CB0 57000011 */  bnezl $t8, .L00473CF8
+/* 00473CB4 90CF0021 */   lbu   $t7, 0x21($a2)
+/* 00473CB8 50E0000F */  beql  $a3, $zero, .L00473CF8
+/* 00473CBC 90CF0021 */   lbu   $t7, 0x21($a2)
+/* 00473CC0 8F9989B4 */  lw     $t9, %got(curgraphnode)($gp)
+/* 00473CC4 8F390000 */  lw    $t9, ($t9)
+/* 00473CC8 8F250024 */  lw    $a1, 0x24($t9)
+/* 00473CCC 8F9983CC */  lw    $t9, %call16(strskilled)($gp)
+/* 00473CD0 AFA6005C */  sw    $a2, 0x5c($sp)
+/* 00473CD4 0320F809 */  jalr  $t9
+/* 00473CD8 00000000 */   nop   
+/* 00473CDC 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 00473CE0 2C480001 */  sltiu $t0, $v0, 1
+/* 00473CE4 8FA6005C */  lw    $a2, 0x5c($sp)
+/* 00473CE8 8F8489C4 */  lw     $a0, %got(stattail)($gp)
+/* 00473CEC 8C840000 */  lw    $a0, ($a0)
+/* 00473CF0 A088001E */  sb    $t0, 0x1e($a0)
+/* 00473CF4 90CF0021 */  lbu   $t7, 0x21($a2)
+.L00473CF8:
+/* 00473CF8 A0800001 */  sb    $zero, 1($a0)
+/* 00473CFC AC80002C */  sw    $zero, 0x2c($a0)
+/* 00473D00 2DEA0001 */  sltiu $t2, $t7, 1
+/* 00473D04 A08A001D */  sb    $t2, 0x1d($a0)
+/* 00473D08 A08A001F */  sb    $t2, 0x1f($a0)
+/* 00473D0C AC800030 */  sw    $zero, 0x30($a0)
+/* 00473D10 A0800002 */  sb    $zero, 2($a0)
+/* 00473D14 90CB0022 */  lbu   $t3, 0x22($a2)
+/* 00473D18 ACC40038 */  sw    $a0, 0x38($a2)
+/* 00473D1C 15600007 */  bnez  $t3, .L00473D3C
+/* 00473D20 00000000 */   nop   
+/* 00473D24 8F99839C */  lw    $t9, %call16(strkillprev)($gp)
+/* 00473D28 AFA6005C */  sw    $a2, 0x5c($sp)
+/* 00473D2C 0320F809 */  jalr  $t9
+/* 00473D30 00000000 */   nop   
+/* 00473D34 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 00473D38 8FA6005C */  lw    $a2, 0x5c($sp)
+.L00473D3C:
+/* 00473D3C 8F998318 */  lw    $t9, %call16(appendstorelist)($gp)
+/* 00473D40 AFA6005C */  sw    $a2, 0x5c($sp)
+/* 00473D44 0320F809 */  jalr  $t9
+/* 00473D48 00000000 */   nop   
+/* 00473D4C 8FA6005C */  lw    $a2, 0x5c($sp)
+/* 00473D50 8FBC0018 */  lw    $gp, 0x18($sp)
+/* 00473D54 90CC0022 */  lbu   $t4, 0x22($a2)
+/* 00473D58 51800007 */  beql  $t4, $zero, .L00473D78
+/* 00473D5C 8FBF001C */   lw    $ra, 0x1c($sp)
+/* 00473D60 8F8E89B4 */  lw     $t6, %got(curgraphnode)($gp)
+/* 00473D64 240D0001 */  li    $t5, 1
+/* 00473D68 8DCE0000 */  lw    $t6, ($t6)
+/* 00473D6C 8DD80028 */  lw    $t8, 0x28($t6)
+/* 00473D70 A30D0008 */  sb    $t5, 8($t8)
+.L00473D74:
+/* 00473D74 8FBF001C */  lw    $ra, 0x1c($sp)
+.L00473D78:
+/* 00473D78 27BD0060 */  addiu $sp, $sp, 0x60
+/* 00473D7C 03E00008 */  jr    $ra
+/* 00473D80 00000000 */   nop   
+    .type par_to_str, @function
+    .size par_to_str, .-par_to_str
+    .end par_to_str
+)"");
 
 /*
 00473F04 pmov_to_mov
 */
-static struct Expression *func_00473D84(struct Statement *pmov, struct VariableLocation loc, unsigned short hash) {
-    struct Expression *var;
+static struct Expression *func_00473D84(struct Statement *pmov, struct VariableInner var, unsigned short hash) {
+    struct Expression *phi_s0;
     bool found;
 
-    var = table[hash];
+    phi_s0 = table[hash];
     found = false;
-    while (!found && var != NULL) {
-        found = var->type == islda
-                 && addreq(var->data.islda_isilda.address, loc)
-                 && loc.addr == var->data.islda_isilda.offset
-                 && pmov->u.store.size == var->data.islda_isilda.size;
+    while (!found && phi_s0 != NULL) {
+        found = phi_s0->type == islda
+                 && addreq(phi_s0->data.islda_isilda.var_data, var)
+                 && var.addr == phi_s0->data.islda_isilda.addr
+                 && pmov->u.store.size == phi_s0->data.islda_isilda.size;
         if (!found) {
-            var = var->next;
+            phi_s0 = phi_s0->next;
         }
     }
 
     if (!found) {
-        var = appendchain(hash);
-        var->type = islda;
-        var->datatype = Adt;
-        var->graphnode = curgraphnode;
-        var->data.islda_isilda.address = loc;
-        var->data.islda_isilda.size = pmov->u.store.size;
-        var->data.islda_isilda.level = curlevel;
-        var->var_access_list = NULL;
-        var->data.islda_isilda.outer_stack = NULL;
-        var->data.islda_isilda.offset = loc.addr;
+        phi_s0 = appendchain(hash);
+        phi_s0->type = islda;
+        phi_s0->datatype = Adt;
+        phi_s0->graphnode = curgraphnode;
+        phi_s0->data.islda_isilda.var_data = var;
+        phi_s0->data.islda_isilda.size = pmov->u.store.size;
+        phi_s0->data.islda_isilda.level = curlevel;
+        phi_s0->var_access_list = NULL;
+        phi_s0->data.islda_isilda.unk34 = NULL;
+        phi_s0->data.islda_isilda.addr = var.addr;
     }
-    return var;
+    return phi_s0;
 }
 
 /*
 004761D0 tail_recursion
 */
 void pmov_to_mov(struct Statement *pmov) {
-    int increment;
-    struct VariableLocation loc;
+    int sp3C;
+    struct VariableInner var; // sp34
     unsigned short hash;
+    struct Expression *temp_v0;
+    struct Statement *mov;
 
-    loc.addr = pmov->u.store.u.mov.offset;
-    loc.blockno = curblk;
-    loc.memtype = Pmt;
+    var.addr = pmov->u.store.u.mov.offset;
+    var.blockno = curblk;
+    var.memtype = Pmt;
 
-    hash = isvarhash(loc);
+    hash = isvarhash(var);
     extendstat(Umov);
-    stattail->expr = func_00473D84(pmov, loc, hash);
-    stattail->u.store.expr = oneloopblockexpr(pmov->expr, &increment);
-    stattail->u.store.expr = unroll_resetincr(stattail->u.store.expr, increment);
-    stattail->u.store.size = pmov->u.store.size;
-    stattail->u.store.u.mov.src_align = pmov->u.store.u.mov.src_align;
-    stattail->u.store.u.mov.dst_align = pmov->u.store.u.mov.src_align; // pmov doesn't have dst_align
-    stattail->u.store.u.mov.baseaddr = findbaseaddr(pmov->expr);
+    mov = stattail;
+    mov->expr = func_00473D84(pmov, var, hash);
+    mov->u.store.expr = oneloopblockexpr(pmov->expr, &sp3C);
+    mov->u.store.expr = unroll_resetincr(mov->u.store.expr, sp3C);
+    mov->u.store.size = pmov->u.store.size;
+    mov->u.store.u.mov.unk32 = pmov->u.store.u.mov.unk32;
+    mov->u.store.u.mov.unk33 = pmov->u.store.u.mov.unk32; // ??
+    mov->u.store.u.mov.baseaddr = findbaseaddr(pmov->expr);
     appendstorelist();
-    stattail->u.store.var_access_list_item->type = 3;
+    mov->u.store.var_access_list_item->type = 3;
     movkillprev(stattail);
-    stattail->u.store.baseaddr = findbaseaddr(stattail->expr);
-    stattail->u.store.lval_ant = !strlkilled(stattail, curgraphnode->varlisthead);
-    stattail->u.store.store_ant = !strskilled(stattail, curgraphnode->varlisthead);
-    stattail->u.store.lval_av = true;
-    stattail->u.store.store_av = true;
+    mov->u.store.baseaddr = findbaseaddr(mov->expr);
+    mov->u.store.unk1C = strlkilled(stattail, curgraphnode->varlisthead) == 0;
+    mov->u.store.unk1E = strskilled(stattail, curgraphnode->varlisthead) == 0;
+    mov->u.store.unk1D = 1;
+    mov->u.store.unk1F = 1;
     strkillprev(stattail);
     appendstorelist();
 }

@@ -1,7 +1,6 @@
 #ifndef LIBU_H
 #define LIBU_H
 
-#include <stdbool.h>
 #include "ucode.h"
 #include "libp/libp.h"
 
@@ -17,16 +16,14 @@ void readuinstr(union Bcode *bcode, char *ustr);
 extern struct utabrec utab[0x9C];
 void inituwrite(const char *path);
 void uwrite(union Bcode *bcode);
-char getdtyname(enum Datatype type);
-char getmtyname(enum Memtype type);
 
 // ucio.c
 void uputinit(const char *path);
-void uputint(int value, bool swap);
+void uputint(int value);
 void uputclose(void);
 void uputkill(void);
 void ugetinit(const char *path);
-int ugetint(bool swap);
+int ugetint(void);
 int ugeteof(void);
 void ugetclose(void);
 

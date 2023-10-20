@@ -5,32 +5,32 @@
 /*
 0042BF08 reemit
 */
-void findbbtemps(struct Graphnode *node) {
+void findbbtemps(void *arg0) {
     int i;
-    struct IChain *ichain;
+    struct BitVectorBlock zero = {0};
+    unsigned char *ptr;
     struct Temploc *pos;
 
-    initbv(&setofspills, (struct BitVectorBlock) {0});
+    initbv(&setofspills, zero);
 
     for (i = 0; i < firstconstbit; i++) {
-        if (bvectin(i, &node->bvs.stage1.u.scm.region) && bvectin(i, &coloreditems)) {
-            ichain = bittab[i].ichain;
-            switch (ichain->type) {
-                case isop:
-                    setbit(&setofspills, ichain->isop.temploc->index);
-                    break;
-
-                case isilda:
-                    setbit(&setofspills, ichain->islda_isilda.temploc->index);
-                    break;
-
-                case issvar:
-                    setbit(&setofspills, ichain->isvar_issvar.temploc->index);
-                    break;
-
-                default:
-                    caseerror(1, 40, "uopttemp.p", 10);
-                    break;
+        if (bvectin(i, (struct BitVector *)((char *)arg0 + 0x15c))) {
+            if (bvectin(i, &coloreditems)) {
+                ptr = (unsigned char *)bittab[i].ichain;
+                switch (*ptr) {
+                    case 4:
+                        setbit(&setofspills, **(int **)(ptr + 0x20));
+                        break;
+                    case 5:
+                        setbit(&setofspills, **(int **)(ptr + 0x24));
+                        break;
+                    case 6:
+                        setbit(&setofspills, **(int **)(ptr + 0x20));
+                        break;
+                    default:
+                        caseerror(1, 40, "uopttemp.p", 10);
+                        break;
+                }
             }
         }
     }
@@ -41,7 +41,7 @@ void findbbtemps(struct Graphnode *node) {
 }
 
 /*
-004230F0 emit_expr
+004230F0 func_004230F0
 0042BF08 reemit
 */
 void gettemp(struct Temploc **out_result, int size) {

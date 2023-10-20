@@ -5,7 +5,7 @@
 #include "uoptdata.h"
 
 
-bool addreq(struct VariableLocation a, struct VariableLocation b);
+bool addreq(struct VariableInner a, struct VariableInner b);
 void stackerror(void);
 void boundswarning(void);
 void ovfwwarning(Uopcode opc);
@@ -13,8 +13,6 @@ void dbgerror(int code);
 struct Expression *appendchain(unsigned short table_index);
 struct Expression *findsimilar(struct Expression *expr);
 void copycoderep(struct Expression *dest, struct Expression *src);
-void fix_sbase(struct Statement *stat);
-void fix_base(struct Expression *expr);
 void fixcorr(struct Expression *expr);
 
 void delentry(struct Expression *entry);
@@ -23,17 +21,14 @@ void increasecount(struct Expression *expr);
 
 int isconsthash(int number);
 int realhash(int len);
-int isvarhash(struct VariableLocation loc);
+int isvarhash(struct VariableInner var);
 int isophash(Uopcode opc, struct Expression *op1, struct Expression *op2);
 int opvalhash(Uopcode opc, struct Expression *op1, int value);
 
 void extendstat(Uopcode opc);
 int sizeoftyp(Datatype t);
 int blktolev(int blk);
-int newbit(struct IChain *ichain, struct LiveRange *liverange);
-
-bool exproccurred(struct IChain *ichain, struct Expression *expr);
-bool iexproccurred(struct IChain *target, struct IChain *ichain2);
+int newbit(struct IChain *ichain, void *unk4);
 
 bool addovfw_signed(int a, int b);
 bool subovfw_signed(int a, int b);
@@ -45,10 +40,9 @@ bool addovfw(enum Datatype t, int a, int b);
 bool subovfw(enum Datatype t, int a, int b);
 bool mpyovfw(enum Datatype t, int a, int b);
 
-struct Expression *searchvar(unsigned short table_index, struct VariableLocation *loc);
+struct Expression *searchvar(unsigned short table_index, struct VariableInner *var);
 void vartreeinfo(struct Variable *var);
 void entervregveqv(void);
-void deccount(struct Expression *expr, struct Graphnode *node);
 void getoption(int uopt_option, int n);
 int cutbits(int val, int length, enum Datatype dtype);
 long long int cutbits64(long long val, int length, enum Datatype dtype);
@@ -56,21 +50,16 @@ struct Expression *enter_const(int num, Datatype datatype, struct Graphnode *gra
 struct Expression *enter_lda(int addr, struct Expression *expr, struct Graphnode *graphnode);
 struct Expression *binopwithconst(Uopcode opc, struct Expression *left, int value);
 int regclassof(struct IChain *ichain);
-bool constinreg(Datatype dtype, int unused, union Constant cval, unsigned char optype);
-bool ldainreg(Memtype mtype, int addr, unsigned char optype);
 bool in_indmults(struct IChain *ichain);
 bool checkincre(struct Expression *entry, struct Expression *entry2, int *result);
 int findincre(struct Expression *entry);
-int countvars(struct IChain *ichain);
-
 bool hasvolatile(struct Expression *expr);
 bool has_volt_ovfw(struct Expression *expr);
 bool has_ilod(struct Expression *expr);
 bool is_incr(struct Expression *expr);
 void *alloc_realloc(void *old_ptr, ssize_t old_size_16_byte_blocks, ssize_t new_size_16_byte_blocks, struct AllocBlock **heap);
-bool fitparmreg(int var_addr, int var_size, int arg_addr, int arg_size);
+bool fitparmreg(int arg0, int arg1, int arg2, int arg3);
 
-bool trap_imply(struct IChain *trap_ichain, struct IChain *ichain);
 int trapstat_imply(struct Statement *stmt, struct Expression *op1, struct Expression *op2);
 
 bool is_power2(unsigned int v);
@@ -79,12 +68,4 @@ int val_when_exponent0(int a, int exponent10);
 int coloroffset(int index);
 int in_reg_masks(int index, int arg1, int arg2);
 void skipproc(int reason);
-bool inside_loop(struct Loop *loop, int loopno);
-bool check_ix_candidate(struct IChain *ichain, int loopno);
-void check_loop_nest_ix_cand(struct IChain *ichain, int *loopno, int *ix_cand);
-bool check_ix_source(struct IChain *ichain, int loopno);
-struct ScmThing *get_ix_source(unsigned char unk11, int loopnum);
-
-bool check_ix_candidate(struct IChain *ichain, int loopno);
-bool check_ix_source(struct IChain *ichain, int loopno);
 #endif

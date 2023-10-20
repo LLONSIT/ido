@@ -1,8 +1,6 @@
 #include "common.h"
 #include "libu.h"
-#include "debug.h"
 
-#if 0
 __asm__(R""(
 .macro glabel label
     .global \label
@@ -41,7 +39,6 @@ glabel opchashtab
 
 .text
 )"");
-#endif
 
 /*
 00487E48 initur
@@ -137,25 +134,25 @@ void readuinstr(union Bcode *bcode, char *ustr) {
         return;
     }
 
-    bcode->intarray[0] = ugetint(true);
-    bcode->intarray[1] = ugetint(true);
+    bcode->intarray[0] = ugetint();
+    bcode->intarray[1] = ugetint();
     urec = utab[uinstr->Opc];
     instlength = urec.instlength;
     for (i = 2; i < instlength; i += 2) {
-        bcode->intarray[i] = ugetint(true);
-        bcode->intarray[i + 1] = ugetint(true);
+        bcode->intarray[i] = ugetint();
+        bcode->intarray[i + 1] = ugetint();
     }
     if (urec.hasconst) {
-        bcode->intarray[instlength] = ugetint(true);
-        bcode->intarray[instlength + 1] = ugetint(true);
+        bcode->intarray[instlength] = ugetint();
+        bcode->intarray[instlength + 1] = ugetint();
         if (((1 << uinstr->Dtype) & ((1 << Mdt) | (1 << Qdt) | (1 << Rdt) | (1 << Sdt) | (1 << Xdt))) || uinstr->Opc == Ucomm) {
             strlength = (bcode->intarray[instlength] + 3) / 4;
             if (strlength & 1) {
                 strlength++;
             }
             for (i = 0; i < strlength; i += 2) {
-                ((int *)ustr)[i] = ugetint(false);
-                ((int *)ustr)[i + 1] = ugetint(false);
+                ((int *)ustr)[i] = ugetint();
+                ((int *)ustr)[i + 1] = ugetint();
             }
             if ((1 << uinstr->Dtype) & ((1 << Qdt) | (1 << Rdt))) {
                 if (uinstr->Opc != Uinit) {
@@ -171,10 +168,6 @@ void readuinstr(union Bcode *bcode, char *ustr) {
             }
         }
     }
-
-#ifdef UOPT_DEBUG
-    push_input(bcode);
-#endif
 }
 
 
@@ -224,7 +217,6 @@ void initur(const char *path) {
     mtytype['A' - 'A'] = Amt;
 }
 
-#if 0
 __asm__(R""(
 .text
 .set noreorder
@@ -366,4 +358,3 @@ glabel ubytetobit
     .size ubytetobit, .-ubytetobit
     .end ubytetobit
 )"");
-#endif
