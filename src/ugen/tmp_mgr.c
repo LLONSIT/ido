@@ -92,56 +92,6 @@ glabel current_temp_index
 .set noreorder # don't insert nops after branches
 
 .text
-glabel init_temps
-    .ent init_temps
-    # 0042BDAC eval
-/* 00440C10 3C1C0FBE */  .cpload $t9
-/* 00440C14 279CEE40 */  
-/* 00440C18 0399E021 */  
-/* 00440C1C 8F818B04 */  lw     $at, %got(temps)($gp)
-/* 00440C20 240E0001 */  li    $t6, 1
-/* 00440C24 AC200000 */  sw    $zero, ($at)
-/* 00440C28 8F818B0C */  lw     $at, %got(current_temp_index)($gp)
-/* 00440C2C 03E00008 */  jr    $ra
-/* 00440C30 A02E0000 */   sb    $t6, ($at)
-    .type init_temps, @function
-    .size init_temps, .-init_temps
-    .end init_temps
-
-glabel lookup_temp
-    .ent lookup_temp
-    # 004413F8 free_temp
-    # 00441538 temp_offset
-    # 00441680 temp_usage_count
-/* 00440C34 3C1C0FBE */  .cpload $t9
-/* 00440C38 279CEE1C */  
-/* 00440C3C 0399E021 */  
-/* 00440C40 8F838B04 */  lw     $v1, %got(temps)($gp)
-/* 00440C44 AFA40000 */  sw    $a0, ($sp)
-/* 00440C48 00001025 */  move  $v0, $zero
-/* 00440C4C 8C630000 */  lw    $v1, ($v1)
-/* 00440C50 1060000C */  beqz  $v1, .L00440C84
-/* 00440C54 00000000 */   nop   
-/* 00440C58 906E0000 */  lbu   $t6, ($v1)
-.L00440C5C:
-/* 00440C5C 548E0007 */  bnel  $a0, $t6, .L00440C7C
-/* 00440C60 8C630010 */   lw    $v1, 0x10($v1)
-/* 00440C64 906F0004 */  lbu   $t7, 4($v1)
-/* 00440C68 55E00004 */  bnel  $t7, $zero, .L00440C7C
-/* 00440C6C 8C630010 */   lw    $v1, 0x10($v1)
-/* 00440C70 03E00008 */  jr    $ra
-/* 00440C74 00601025 */   move  $v0, $v1
-
-/* 00440C78 8C630010 */  lw    $v1, 0x10($v1)
-.L00440C7C:
-/* 00440C7C 5460FFF7 */  bnel  $v1, $zero, .L00440C5C
-/* 00440C80 906E0000 */   lbu   $t6, ($v1)
-.L00440C84:
-/* 00440C84 03E00008 */  jr    $ra
-/* 00440C88 00000000 */   nop   
-    .type lookup_temp, @function
-    .size lookup_temp, .-lookup_temp
-    .end lookup_temp
 
 glabel make_new_temp
     .ent make_new_temp
@@ -265,39 +215,6 @@ glabel make_new_temp
     .type make_new_temp, @function
     .size make_new_temp, .-make_new_temp
     .end make_new_temp
-
-glabel find_free_temp
-    .ent find_free_temp
-    # 00441308 spill_to_temp
-/* 00440E48 3C1C0FBE */  .cpload $t9
-/* 00440E4C 279CEC08 */  
-/* 00440E50 0399E021 */  
-/* 00440E54 8F838B04 */  lw     $v1, %got(temps)($gp)
-/* 00440E58 00001025 */  move  $v0, $zero
-/* 00440E5C 8C630000 */  lw    $v1, ($v1)
-/* 00440E60 1060000D */  beqz  $v1, .L00440E98
-/* 00440E64 00000000 */   nop   
-/* 00440E68 906E0004 */  lbu   $t6, 4($v1)
-.L00440E6C:
-/* 00440E6C 51C00008 */  beql  $t6, $zero, .L00440E90
-/* 00440E70 8C630010 */   lw    $v1, 0x10($v1)
-/* 00440E74 8C6F0008 */  lw    $t7, 8($v1)
-/* 00440E78 548F0005 */  bnel  $a0, $t7, .L00440E90
-/* 00440E7C 8C630010 */   lw    $v1, 0x10($v1)
-/* 00440E80 A0600004 */  sb    $zero, 4($v1)
-/* 00440E84 03E00008 */  jr    $ra
-/* 00440E88 00601025 */   move  $v0, $v1
-
-/* 00440E8C 8C630010 */  lw    $v1, 0x10($v1)
-.L00440E90:
-/* 00440E90 5460FFF6 */  bnel  $v1, $zero, .L00440E6C
-/* 00440E94 906E0004 */   lbu   $t6, 4($v1)
-.L00440E98:
-/* 00440E98 03E00008 */  jr    $ra
-/* 00440E9C 00000000 */   nop   
-    .type find_free_temp, @function
-    .size find_free_temp, .-find_free_temp
-    .end find_free_temp
 
 glabel gen_store
     .ent gen_store
@@ -959,40 +876,4 @@ glabel temp_usage_count
     .size temp_usage_count, .-temp_usage_count
     .end temp_usage_count
 
-glabel get_temp_area_size
-    .ent get_temp_area_size
-    # 0042BDAC eval
-/* 004417C8 3C1C0FBE */  .cpload $t9
-/* 004417CC 279CE288 */  
-/* 004417D0 0399E021 */  
-/* 004417D4 8F828B04 */  lw     $v0, %got(temps)($gp)
-/* 004417D8 00001825 */  move  $v1, $zero
-/* 004417DC 8C420000 */  lw    $v0, ($v0)
-/* 004417E0 10400006 */  beqz  $v0, .L004417FC
-/* 004417E4 00000000 */   nop   
-/* 004417E8 8C4E0008 */  lw    $t6, 8($v0)
-.L004417EC:
-/* 004417EC 8C420010 */  lw    $v0, 0x10($v0)
-/* 004417F0 006E1821 */  addu  $v1, $v1, $t6
-/* 004417F4 5440FFFD */  bnel  $v0, $zero, .L004417EC
-/* 004417F8 8C4E0008 */   lw    $t6, 8($v0)
-.L004417FC:
-/* 004417FC 03E00008 */  jr    $ra
-/* 00441800 00601025 */   move  $v0, $v1
-    .type get_temp_area_size, @function
-    .size get_temp_area_size, .-get_temp_area_size
-    .end get_temp_area_size
-
-glabel set_temps_offset
-    .ent set_temps_offset
-    # 0042BDAC eval
-/* 00441804 3C1C0FBE */  .cpload $t9
-/* 00441808 279CE24C */  
-/* 0044180C 0399E021 */  
-/* 00441810 8F818B08 */  lw     $at, %got(temps_offset)($gp)
-/* 00441814 03E00008 */  jr    $ra
-/* 00441818 AC240000 */   sw    $a0, ($at)
-    .type set_temps_offset, @function
-    .size set_temps_offset, .-set_temps_offset
-    .end set_temps_offset
 )"");

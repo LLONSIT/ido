@@ -19030,64 +19030,6 @@ glabel eval
     .size eval, .-eval
     .end eval
 
-glabel init_eval
-    .ent init_eval
-    # 0044BF18 main
-/* 0043303C 3C1C0FBF */  .cpload $t9
-/* 00433040 279CCA14 */  
-/* 00433044 0399E021 */  
-/* 00433048 8F818AAC */  lw     $at, %got(first_loc)($gp)
-/* 0043304C 240E0001 */  li    $t6, 1
-/* 00433050 A02E0000 */  sb    $t6, ($at)
-/* 00433054 8F818AB0 */  lw     $at, %got(first_file_number)($gp)
-/* 00433058 AC200000 */  sw    $zero, ($at)
-/* 0043305C 8F818AB4 */  lw     $at, %got(first_line_number)($gp)
-/* 00433060 AC200000 */  sw    $zero, ($at)
-/* 00433064 8F818AA8 */  lw     $at, %got(generate_again)($gp)
-/* 00433068 03E00008 */  jr    $ra
-/* 0043306C A0200000 */   sb    $zero, ($at)
-    .type init_eval, @function
-    .size init_eval, .-init_eval
-    .end init_eval
-
-glabel load_fp_literal
-    .ent load_fp_literal
-    # 0042BDAC eval
-/* 00433070 3C1C0FBF */  .cpload $t9
-/* 00433074 279CC9E0 */  
-/* 00433078 0399E021 */  
-/* 0043307C 8F998348 */  lw    $t9, %call16(get_dest)($gp)
-/* 00433080 27BDFFE0 */  addiu $sp, $sp, -0x20
-/* 00433084 AFBF001C */  sw    $ra, 0x1c($sp)
-/* 00433088 AFBC0018 */  sw    $gp, 0x18($sp)
-/* 0043308C AFA40020 */  sw    $a0, 0x20($sp)
-/* 00433090 0320F809 */  jalr  $t9
-/* 00433094 AFA50024 */   sw    $a1, 0x24($sp)
-/* 00433098 8FBC0018 */  lw    $gp, 0x18($sp)
-/* 0043309C 8FAE0020 */  lw    $t6, 0x20($sp)
-/* 004330A0 A3A20027 */  sb    $v0, 0x27($sp)
-/* 004330A4 8F998314 */  lw    $t9, %call16(fasm)($gp)
-/* 004330A8 91C50021 */  lbu   $a1, 0x21($t6)
-/* 004330AC 240400FC */  li    $a0, 252
-/* 004330B0 0320F809 */  jalr  $t9
-/* 004330B4 30A5001F */   andi  $a1, $a1, 0x1f
-/* 004330B8 8FBC0018 */  lw    $gp, 0x18($sp)
-/* 004330BC 8FA60020 */  lw    $a2, 0x20($sp)
-/* 004330C0 00402025 */  move  $a0, $v0
-/* 004330C4 8F9981FC */  lw    $t9, %call16(emit_rfi)($gp)
-/* 004330C8 93A50027 */  lbu   $a1, 0x27($sp)
-/* 004330CC 24C60030 */  addiu $a2, $a2, 0x30
-/* 004330D0 0320F809 */  jalr  $t9
-/* 004330D4 00000000 */   nop   
-/* 004330D8 8FBF001C */  lw    $ra, 0x1c($sp)
-/* 004330DC 8FBC0018 */  lw    $gp, 0x18($sp)
-/* 004330E0 27BD0020 */  addiu $sp, $sp, 0x20
-/* 004330E4 03E00008 */  jr    $ra
-/* 004330E8 00000000 */   nop   
-    .type load_fp_literal, @function
-    .size load_fp_literal, .-load_fp_literal
-    .end load_fp_literal
-
 glabel eval_int_flt_cvt
     .ent eval_int_flt_cvt
     # 0042BDAC eval
