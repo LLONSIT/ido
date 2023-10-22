@@ -408,83 +408,6 @@ glabel get_data_area
     .size get_data_area, .-get_data_area
     .end get_data_area
 
-glabel get_sym_type
-    .ent get_sym_type
-    # 0043DFB0 gen_sym
-/* 0043DC38 90820000 */  lbu   $v0, ($a0)
-/* 0043DC3C 24010053 */  li    $at, 83
-/* 0043DC40 10410003 */  beq   $v0, $at, .L0043DC50
-/* 0043DC44 24010027 */   li    $at, 39
-/* 0043DC48 54410004 */  bnel  $v0, $at, .L0043DC5C
-/* 0043DC4C 2401002A */   li    $at, 42
-.L0043DC50:
-/* 0043DC50 03E00008 */  jr    $ra
-/* 0043DC54 24020004 */   li    $v0, 4
-
-/* 0043DC58 2401002A */  li    $at, 42
-.L0043DC5C:
-/* 0043DC5C 54410004 */  bnel  $v0, $at, .L0043DC70
-/* 0043DC60 24010098 */   li    $at, 152
-/* 0043DC64 03E00008 */  jr    $ra
-/* 0043DC68 24020002 */   li    $v0, 2
-
-/* 0043DC6C 24010098 */  li    $at, 152
-.L0043DC70:
-/* 0043DC70 54410004 */  bnel  $v0, $at, .L0043DC84
-/* 0043DC74 24010099 */   li    $at, 153
-/* 0043DC78 03E00008 */  jr    $ra
-/* 0043DC7C 24020003 */   li    $v0, 3
-
-/* 0043DC80 24010099 */  li    $at, 153
-.L0043DC84:
-/* 0043DC84 54410004 */  bnel  $v0, $at, .L0043DC98
-/* 0043DC88 24010096 */   li    $at, 150
-/* 0043DC8C 03E00008 */  jr    $ra
-/* 0043DC90 24020006 */   li    $v0, 6
-
-/* 0043DC94 24010096 */  li    $at, 150
-.L0043DC98:
-/* 0043DC98 54410004 */  bnel  $v0, $at, .L0043DCAC
-/* 0043DC9C 24010024 */   li    $at, 36
-/* 0043DCA0 03E00008 */  jr    $ra
-/* 0043DCA4 24020005 */   li    $v0, 5
-
-/* 0043DCA8 24010024 */  li    $at, 36
-.L0043DCAC:
-/* 0043DCAC 54410004 */  bnel  $v0, $at, .L0043DCC0
-/* 0043DCB0 24010006 */   li    $at, 6
-/* 0043DCB4 03E00008 */  jr    $ra
-/* 0043DCB8 24020001 */   li    $v0, 1
-
-/* 0043DCBC 24010006 */  li    $at, 6
-.L0043DCC0:
-/* 0043DCC0 54410004 */  bnel  $v0, $at, .L0043DCD4
-/* 0043DCC4 24010014 */   li    $at, 20
-/* 0043DCC8 03E00008 */  jr    $ra
-/* 0043DCCC 24020008 */   li    $v0, 8
-
-/* 0043DCD0 24010014 */  li    $at, 20
-.L0043DCD4:
-/* 0043DCD4 54410004 */  bnel  $v0, $at, .L0043DCE8
-/* 0043DCD8 24010021 */   li    $at, 33
-/* 0043DCDC 03E00008 */  jr    $ra
-/* 0043DCE0 24020007 */   li    $v0, 7
-
-/* 0043DCE4 24010021 */  li    $at, 33
-.L0043DCE8:
-/* 0043DCE8 54410004 */  bnel  $v0, $at, .L0043DCFC
-/* 0043DCEC 00001025 */   move  $v0, $zero
-/* 0043DCF0 03E00008 */  jr    $ra
-/* 0043DCF4 24020009 */   li    $v0, 9
-
-/* 0043DCF8 00001025 */  move  $v0, $zero
-.L0043DCFC:
-/* 0043DCFC 03E00008 */  jr    $ra
-/* 0043DD00 00000000 */   nop   
-    .type get_sym_type, @function
-    .size get_sym_type, .-get_sym_type
-    .end get_sym_type
-
 glabel make_new_sym
     .ent make_new_sym
     # 0043DFB0 gen_sym
@@ -610,30 +533,6 @@ glabel make_new_sym
     .size make_new_sym, .-make_new_sym
     .end make_new_sym
 
-glabel change_sym_type
-    .ent change_sym_type
-    # 0043DFB0 gen_sym
-/* 0043DECC 24010001 */  li    $at, 1
-/* 0043DED0 AFA40000 */  sw    $a0, ($sp)
-/* 0043DED4 10810007 */  beq   $a0, $at, .L0043DEF4
-/* 0043DED8 AFA50004 */   sw    $a1, 4($sp)
-/* 0043DEDC 24010004 */  li    $at, 4
-/* 0043DEE0 14810006 */  bne   $a0, $at, .L0043DEFC
-/* 0043DEE4 00801025 */   move  $v0, $a0
-/* 0043DEE8 24010007 */  li    $at, 7
-/* 0043DEEC 14A10003 */  bne   $a1, $at, .L0043DEFC
-/* 0043DEF0 00000000 */   nop   
-.L0043DEF4:
-/* 0043DEF4 03E00008 */  jr    $ra
-/* 0043DEF8 00A01025 */   move  $v0, $a1
-
-.L0043DEFC:
-/* 0043DEFC 03E00008 */  jr    $ra
-/* 0043DF00 00000000 */   nop   
-    .type change_sym_type, @function
-    .size change_sym_type, .-change_sym_type
-    .end change_sym_type
-
 glabel lookup_sym
     .ent lookup_sym
     # 0043DFB0 gen_sym
@@ -681,27 +580,6 @@ glabel lookup_sym
     .type lookup_sym, @function
     .size lookup_sym, .-lookup_sym
     .end lookup_sym
-
-glabel clear_sym_tab
-    .ent clear_sym_tab
-    # 0044BF18 main
-/* 0043DF7C 3C1C0FBE */  .cpload $t9
-/* 0043DF80 279C1AD4 */  
-/* 0043DF84 0399E021 */  
-/* 0043DF88 8F838BD8 */  lw     $v1, %got(sym_hash_tab)($gp)
-/* 0043DF8C 24620400 */  addiu $v0, $v1, 0x400
-.L0043DF90:
-/* 0043DF90 24630010 */  addiu $v1, $v1, 0x10
-/* 0043DF94 AC60FFF0 */  sw    $zero, -0x10($v1)
-/* 0043DF98 AC60FFF4 */  sw    $zero, -0xc($v1)
-/* 0043DF9C AC60FFF8 */  sw    $zero, -8($v1)
-/* 0043DFA0 1462FFFB */  bne   $v1, $v0, .L0043DF90
-/* 0043DFA4 AC60FFFC */   sw    $zero, -4($v1)
-/* 0043DFA8 03E00008 */  jr    $ra
-/* 0043DFAC 00000000 */   nop   
-    .type clear_sym_tab, @function
-    .size clear_sym_tab, .-clear_sym_tab
-    .end clear_sym_tab
 
 glabel gen_sym
     .ent gen_sym
@@ -3810,60 +3688,4 @@ glabel set_mtag
     .size set_mtag, .-set_mtag
     .end set_mtag
 
-glabel get_mtag
-    .ent get_mtag
-    # 00447768 check_reg
-/* 00440B60 3C1C0FBE */  .cpload $t9
-/* 00440B64 279CEEF0 */  
-/* 00440B68 0399E021 */  
-/* 00440B6C 8F99855C */  lw    $t9, %call16(lookup_sym)($gp)
-/* 00440B70 27BDFFE0 */  addiu $sp, $sp, -0x20
-/* 00440B74 AFBF001C */  sw    $ra, 0x1c($sp)
-/* 00440B78 0320F809 */  jalr  $t9
-/* 00440B7C AFBC0018 */   sw    $gp, 0x18($sp)
-/* 00440B80 10400003 */  beqz  $v0, .L00440B90
-/* 00440B84 8FBC0018 */   lw    $gp, 0x18($sp)
-/* 00440B88 10000003 */  b     .L00440B98
-/* 00440B8C 8C430014 */   lw    $v1, 0x14($v0)
-.L00440B90:
-/* 00440B90 8F838970 */  lw     $v1, %got(non_local_mtag)($gp)
-/* 00440B94 8C630000 */  lw    $v1, ($v1)
-.L00440B98:
-/* 00440B98 8FBF001C */  lw    $ra, 0x1c($sp)
-/* 00440B9C 27BD0020 */  addiu $sp, $sp, 0x20
-/* 00440BA0 00601025 */  move  $v0, $v1
-/* 00440BA4 03E00008 */  jr    $ra
-/* 00440BA8 00000000 */   nop   
-    .type get_mtag, @function
-    .size get_mtag, .-get_mtag
-    .end get_mtag
-
-glabel get_sym_kind
-    .ent get_sym_kind
-    # 0042670C loadstore
-    # 00428D14 eval_mov
-    # 0042BDAC eval
-/* 00440BAC 3C1C0FBE */  .cpload $t9
-/* 00440BB0 279CEEA4 */  
-/* 00440BB4 0399E021 */  
-/* 00440BB8 8F99855C */  lw    $t9, %call16(lookup_sym)($gp)
-/* 00440BBC 27BDFFE0 */  addiu $sp, $sp, -0x20
-/* 00440BC0 AFBF001C */  sw    $ra, 0x1c($sp)
-/* 00440BC4 0320F809 */  jalr  $t9
-/* 00440BC8 AFBC0018 */   sw    $gp, 0x18($sp)
-/* 00440BCC 10400003 */  beqz  $v0, .L00440BDC
-/* 00440BD0 8FBC0018 */   lw    $gp, 0x18($sp)
-/* 00440BD4 10000002 */  b     .L00440BE0
-/* 00440BD8 9043000C */   lbu   $v1, 0xc($v0)
-.L00440BDC:
-/* 00440BDC 00001825 */  move  $v1, $zero
-.L00440BE0:
-/* 00440BE0 8FBF001C */  lw    $ra, 0x1c($sp)
-/* 00440BE4 27BD0020 */  addiu $sp, $sp, 0x20
-/* 00440BE8 00601025 */  move  $v0, $v1
-/* 00440BEC 03E00008 */  jr    $ra
-/* 00440BF0 00000000 */   nop   
-    .type get_sym_kind, @function
-    .size get_sym_kind, .-get_sym_kind
-    .end get_sym_kind
 )"");

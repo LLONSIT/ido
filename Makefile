@@ -37,7 +37,7 @@ $(BUILD_DIR)/uopt: $(UOPT_O_FILES)
 
 $(BUILD_DIR)/ugen: $(UGEN_O_FILES)
 	tools/compile_pascal_files.sh
-	$(CC) -o $@ $^ build/src/ugen/build.p.o build/src/ugen/frame_offset.o build/src/ugen/reg_mgr.p.o build/src/ugen/eval.p.o build/src/ugen/tmp_mgr.p.o $(LDFLAGS)
+	$(CC) -o $@ $^ build/src/ugen/build.p.o build/src/ugen/frame_offset.o build/src/ugen/reg_mgr.p.o build/src/ugen/eval.p.o build/src/ugen/tmp_mgr.p.o build/src/ugen/symbol.p.o build/src/ugen/tree_utils.p.o $(LDFLAGS)
 
 $(BUILD_DIR)/%.o: %.c
 	$(CC) -MMD -c $(CFLAGS) -o $@ $<

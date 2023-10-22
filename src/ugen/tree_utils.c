@@ -178,24 +178,6 @@ glabel label_id_counter
 .set noreorder # don't insert nops after branches
 
 .text
-glabel initialize_tree
-    .ent initialize_tree
-    # 0044BF18 main
-/* 00449F50 3C1C0FBD */  .cpload $t9
-/* 00449F54 279C5B00 */  
-/* 00449F58 0399E021 */  
-/* 00449F5C 8F818B44 */  lw     $at, %got(tree_mark)($gp)
-/* 00449F60 240E001F */  li    $t6, 31
-/* 00449F64 AC200000 */  sw    $zero, ($at)
-/* 00449F68 8F818B48 */  lw     $at, %got(tree_counter)($gp)
-/* 00449F6C AC200000 */  sw    $zero, ($at)
-/* 00449F70 8F818B4C */  lw     $at, %got(label_id_counter)($gp)
-/* 00449F74 03E00008 */  jr    $ra
-/* 00449F78 AC2E0000 */   sw    $t6, ($at)
-    .type initialize_tree, @function
-    .size initialize_tree, .-initialize_tree
-    .end initialize_tree
-
 glabel gen_label_id
     .ent gen_label_id
     # 0041AFE4 func_0041AFE4
@@ -481,33 +463,6 @@ glabel build_u2
     .size build_u2, .-build_u2
     .end build_u2
 
-glabel build_op
-    .ent build_op
-    # 0040E144 find_label
-    # 0040F1BC func_0040F1BC
-    # 0040F4C8 build_tree
-    # 00436F74 make_new_label
-    # 004395DC fix_amt_ref
-/* 0044A24C 3C1C0FBD */  .cpload $t9
-/* 0044A250 279C5804 */  
-/* 0044A254 0399E021 */  
-/* 0044A258 8F998654 */  lw    $t9, %call16(new_tree)($gp)
-/* 0044A25C 27BDFFE0 */  addiu $sp, $sp, -0x20
-/* 0044A260 AFBF001C */  sw    $ra, 0x1c($sp)
-/* 0044A264 AFBC0018 */  sw    $gp, 0x18($sp)
-/* 0044A268 0320F809 */  jalr  $t9
-/* 0044A26C AFA40020 */   sw    $a0, 0x20($sp)
-/* 0044A270 93AE0023 */  lbu   $t6, 0x23($sp)
-/* 0044A274 8FBC0018 */  lw    $gp, 0x18($sp)
-/* 0044A278 A04E0020 */  sb    $t6, 0x20($v0)
-/* 0044A27C 8FBF001C */  lw    $ra, 0x1c($sp)
-/* 0044A280 27BD0020 */  addiu $sp, $sp, 0x20
-/* 0044A284 03E00008 */  jr    $ra
-/* 0044A288 00000000 */   nop   
-    .type build_op, @function
-    .size build_op, .-build_op
-    .end build_op
-
 glabel build_1op
     .ent build_1op
     # 0040F4C8 build_tree
@@ -726,16 +681,6 @@ glabel build_2op
     .type build_2op, @function
     .size build_2op, .-build_2op
     .end build_2op
-
-glabel free_node
-    .ent free_node
-    # 00446E94 free_tree_and_cse
-    # 0044A538 free_tree
-/* 0044A530 03E00008 */  jr    $ra
-/* 0044A534 AFA40000 */   sw    $a0, ($sp)
-    .type free_node, @function
-    .size free_node, .-free_node
-    .end free_node
 
 glabel free_tree
     .ent free_tree
