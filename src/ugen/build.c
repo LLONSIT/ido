@@ -327,40 +327,6 @@ glabel get_domtag
     .size get_domtag, .-get_domtag
     .end get_domtag
 
-glabel search_label
-    .ent search_label
-    # 0040F4C8 build_tree
-/* 0040E0E4 3C1C0FC1 */  .cpload $t9
-/* 0040E0E8 279C196C */
-/* 0040E0EC 0399E021 */
-/* 0040E0F0 240100FD */  li    $at, 253
-/* 0040E0F4 0081001B */  divu  $zero, $a0, $at
-/* 0040E0F8 00007010 */  mfhi  $t6
-/* 0040E0FC 05C10002 */  bgez  $t6, .L0040E108
-/* 0040E100 00000000 */   nop
-/* 0040E104 21CE00FD */  addi  $t6, $t6, 0xfd
-.L0040E108:
-/* 0040E108 8F998BD0 */  lw     $t9, %got(label_hash_table)($gp)
-/* 0040E10C 31CF00FF */  andi  $t7, $t6, 0xff
-/* 0040E110 000FC080 */  sll   $t8, $t7, 2
-/* 0040E114 03194021 */  addu  $t0, $t8, $t9
-/* 0040E118 8D030000 */  lw    $v1, ($t0)
-/* 0040E11C 10600007 */  beqz  $v1, .L0040E13C
-/* 0040E120 00000000 */   nop
-/* 0040E124 8C690024 */  lw    $t1, 0x24($v1)
-.L0040E128:
-/* 0040E128 10890004 */  beq   $a0, $t1, .L0040E13C
-/* 0040E12C 00000000 */   nop
-/* 0040E130 8C630000 */  lw    $v1, ($v1)
-/* 0040E134 5460FFFC */  bnel  $v1, $zero, .L0040E128
-/* 0040E138 8C690024 */   lw    $t1, 0x24($v1)
-.L0040E13C:
-/* 0040E13C 03E00008 */  jr    $ra
-/* 0040E140 00601025 */   move  $v0, $v1
-    .type search_label, @function
-    .size search_label, .-search_label
-    .end search_label
-
 glabel find_label
     .ent find_label
     # 0040F4C8 build_tree
@@ -446,6 +412,7 @@ func_0040E24C:
 /* 0040E278 03E00008 */  jr    $ra
 /* 0040E27C AC44EBA4 */   sw    $a0, -0x145c($v0)
 
+#Already decompiled!!
     .type func_0040E280, @function
 func_0040E280:
     # 0040F4C8 build_tree
@@ -453,7 +420,7 @@ func_0040E280:
 /* 0040E284 AC850008 */  sw    $a1, 8($a0)
 /* 0040E288 8CA30008 */  lw    $v1, 8($a1)
 /* 0040E28C 10600005 */  beqz  $v1, .L0040E2A4
-/* 0040E290 00000000 */   nop   
+/* 0040E290 00000000 */   nop
 /* 0040E294 00602825 */  move  $a1, $v1
 .L0040E298:
 /* 0040E298 8C630008 */  lw    $v1, 8($v1)

@@ -395,8 +395,8 @@ glabel make_new_jump
     # 00438320 match_uconds
     # 004387D8 match_conds
 /* 00436FD0 3C1C0FBF */  .cpload $t9
-/* 00436FD4 279C8A80 */  
-/* 00436FD8 0399E021 */  
+/* 00436FD4 279C8A80 */
+/* 00436FD8 0399E021 */
 /* 00436FDC 8F99866C */  lw    $t9, %call16(build_2op)($gp)
 /* 00436FE0 27BDFFE0 */  addiu $sp, $sp, -0x20
 /* 00436FE4 AFBF001C */  sw    $ra, 0x1c($sp)
@@ -409,7 +409,7 @@ glabel make_new_jump
 /* 00437000 8FBC0018 */  lw    $gp, 0x18($sp)
 /* 00437004 27BD0020 */  addiu $sp, $sp, 0x20
 /* 00437008 03E00008 */  jr    $ra
-/* 0043700C 00000000 */   nop   
+/* 0043700C 00000000 */   nop
     .type make_new_jump, @function
     .size make_new_jump, .-make_new_jump
     .end make_new_jump
