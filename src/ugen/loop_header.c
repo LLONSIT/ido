@@ -331,33 +331,6 @@ glabel pay
 .set noreorder # don't insert nops after branches
 
 .text
-glabel insert
-    .ent insert
-    # 004380EC move_label
-/* 00436F40 AC850008 */  sw    $a1, 8($a0)
-/* 00436F44 8CAE000C */  lw    $t6, 0xc($a1)
-/* 00436F48 AC8E000C */  sw    $t6, 0xc($a0)
-/* 00436F4C ADC40008 */  sw    $a0, 8($t6)
-/* 00436F50 03E00008 */  jr    $ra
-/* 00436F54 ACA4000C */   sw    $a0, 0xc($a1)
-    .type insert, @function
-    .size insert, .-insert
-    .end insert
-
-glabel append
-    .ent append
-    # 00438320 match_uconds
-    # 004387D8 match_conds
-/* 00436F58 AC85000C */  sw    $a1, 0xc($a0)
-/* 00436F5C 8CAE0008 */  lw    $t6, 8($a1)
-/* 00436F60 AC8E0008 */  sw    $t6, 8($a0)
-/* 00436F64 ACA40008 */  sw    $a0, 8($a1)
-/* 00436F68 8C8F0008 */  lw    $t7, 8($a0)
-/* 00436F6C 03E00008 */  jr    $ra
-/* 00436F70 ADE4000C */   sw    $a0, 0xc($t7)
-    .type append, @function
-    .size append, .-append
-    .end append
 
 glabel make_new_label
     .ent make_new_label
@@ -1594,34 +1567,6 @@ glabel cmp_tree_again
     .type cmp_tree_again, @function
     .size cmp_tree_again, .-cmp_tree_again
     .end cmp_tree_again
-
-glabel move_label
-    .ent move_label
-    # 00438320 match_uconds
-    # 004387D8 match_conds
-/* 004380EC 3C1C0FBE */  .cpload $t9
-/* 004380F0 279C7964 */  
-/* 004380F4 0399E021 */  
-/* 004380F8 8C8E0008 */  lw    $t6, 8($a0)
-/* 004380FC 8C8F000C */  lw    $t7, 0xc($a0)
-/* 00438100 27BDFFE0 */  addiu $sp, $sp, -0x20
-/* 00438104 AFBF001C */  sw    $ra, 0x1c($sp)
-/* 00438108 AFBC0018 */  sw    $gp, 0x18($sp)
-/* 0043810C ADEE0008 */  sw    $t6, 8($t7)
-/* 00438110 8C990008 */  lw    $t9, 8($a0)
-/* 00438114 8C98000C */  lw    $t8, 0xc($a0)
-/* 00438118 AF38000C */  sw    $t8, 0xc($t9)
-/* 0043811C 8F998440 */  lw    $t9, %call16(insert)($gp)
-/* 00438120 0320F809 */  jalr  $t9
-/* 00438124 00000000 */   nop   
-/* 00438128 8FBF001C */  lw    $ra, 0x1c($sp)
-/* 0043812C 8FBC0018 */  lw    $gp, 0x18($sp)
-/* 00438130 27BD0020 */  addiu $sp, $sp, 0x20
-/* 00438134 03E00008 */  jr    $ra
-/* 00438138 00000000 */   nop   
-    .type move_label, @function
-    .size move_label, .-move_label
-    .end move_label
 
 glabel get_prior_stm
     .ent get_prior_stm

@@ -7151,63 +7151,6 @@ glabel unaligned_loadstore
     .size unaligned_loadstore, .-unaligned_loadstore
     .end unaligned_loadstore
 
-glabel eval_2ops
-    .ent eval_2ops
-    # 004285F0 eval_fp_cond
-    # 00428A9C eval2
-    # 0042BDAC eval
-/* 00428538 3C1C0FBF */  .cpload $t9
-/* 0042853C 279C7518 */  
-/* 00428540 0399E021 */  
-/* 00428544 27BDFFD8 */  addiu $sp, $sp, -0x28
-/* 00428548 AFBF001C */  sw    $ra, 0x1c($sp)
-/* 0042854C AFBC0018 */  sw    $gp, 0x18($sp)
-/* 00428550 8C8E0004 */  lw    $t6, 4($a0)
-/* 00428554 8C870000 */  lw    $a3, ($a0)
-/* 00428558 00803025 */  move  $a2, $a0
-/* 0042855C AFAE0020 */  sw    $t6, 0x20($sp)
-/* 00428560 91D90016 */  lbu   $t9, 0x16($t6)
-/* 00428564 90EF0016 */  lbu   $t7, 0x16($a3)
-/* 00428568 01F9082B */  sltu  $at, $t7, $t9
-/* 0042856C 1420000F */  bnez  $at, .L004285AC
-/* 00428570 00000000 */   nop   
-/* 00428574 8F9983D0 */  lw    $t9, %call16(eval)($gp)
-/* 00428578 00E02025 */  move  $a0, $a3
-/* 0042857C 24050048 */  li    $a1, 72
-/* 00428580 0320F809 */  jalr  $t9
-/* 00428584 AFA60028 */   sw    $a2, 0x28($sp)
-/* 00428588 8FBC0018 */  lw    $gp, 0x18($sp)
-/* 0042858C 8FA60028 */  lw    $a2, 0x28($sp)
-/* 00428590 24050048 */  li    $a1, 72
-/* 00428594 8F9983D0 */  lw    $t9, %call16(eval)($gp)
-/* 00428598 8CC40004 */  lw    $a0, 4($a2)
-/* 0042859C 0320F809 */  jalr  $t9
-/* 004285A0 00000000 */   nop   
-/* 004285A4 1000000E */  b     .L004285E0
-/* 004285A8 8FBC0018 */   lw    $gp, 0x18($sp)
-.L004285AC:
-/* 004285AC 8F9983D0 */  lw    $t9, %call16(eval)($gp)
-/* 004285B0 8FA40020 */  lw    $a0, 0x20($sp)
-/* 004285B4 24050048 */  li    $a1, 72
-/* 004285B8 0320F809 */  jalr  $t9
-/* 004285BC AFA60028 */   sw    $a2, 0x28($sp)
-/* 004285C0 8FBC0018 */  lw    $gp, 0x18($sp)
-/* 004285C4 8FA60028 */  lw    $a2, 0x28($sp)
-/* 004285C8 24050048 */  li    $a1, 72
-/* 004285CC 8F9983D0 */  lw    $t9, %call16(eval)($gp)
-/* 004285D0 8CC40000 */  lw    $a0, ($a2)
-/* 004285D4 0320F809 */  jalr  $t9
-/* 004285D8 00000000 */   nop   
-/* 004285DC 8FBC0018 */  lw    $gp, 0x18($sp)
-.L004285E0:
-/* 004285E0 8FBF001C */  lw    $ra, 0x1c($sp)
-/* 004285E4 27BD0028 */  addiu $sp, $sp, 0x28
-/* 004285E8 03E00008 */  jr    $ra
-/* 004285EC 00000000 */   nop   
-    .type eval_2ops, @function
-    .size eval_2ops, .-eval_2ops
-    .end eval_2ops
-
 glabel eval_fp_cond
     .ent eval_fp_cond
     # 0042BDAC eval
