@@ -1,26 +1,40 @@
-procedure func_0044B384(u8 arg0, s32 arg1);
+#include "ugen.h"
+
+procedure func_0044B384(chr: char; regs: integer);
 begin
-    case arg0 of                                 /* irregular */
-    'a:
-        n_parm_regs = arg1;
-        return;
-    'g:
-        if (arg1 < 4) then begin
-            report_error("insufficient code generator registers                                           ", "ugen.p                                                                          ");
-            n_cg_regs = 4;
-            return;
+    case chr of                                 /* irregular */
+
+    'a':
+    begin
+        n_parm_regs := regs;
+    end;
+
+    'g':
+    begin
+        if (regs < 4) then begin
+            report_error(4, 16#8A, "insufficient code generator registers", "ugen.p");
+            n_cg_regs := 4;
+        end else begin
+             n_cg_regs := regs; 
         end;
-        n_cg_regs = arg1;
-        return;
+    end;
+
     'r':
-        n_unsaved_regs = arg1;
-        return;
-    'e':
-        n_saved_regs = arg1;
-        return;
+    begin
+        n_unsaved_regs := regs;
+    end;
+
+   'e':
+    begin
+        n_saved_regs := regs;
+    end;
+
+   ' ':
     otherwise:
-        report_error(""illegal register type                                                           ", "ugen.p                                                                          ");
-        return;
-        return;
-    end
+    begin
+        report_error(4, 16#9A, "illegal register type", "ugen.p");
+
+    end;
+
+    end;
 end;

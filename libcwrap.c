@@ -6,11 +6,8 @@
 
 int __Argc;
 char **__Argv;
-#ifdef UGEN_DEBUG
-unsigned char debug_ugen = 1; //0 = false, 1 = true
-#else
-unsigned char debug_ugen = 0;
-#endif
+
+unsigned char debug_ugen = 1;
 
 double _atod(const char *str) {
     return atof(str);

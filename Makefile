@@ -7,7 +7,7 @@ AS0_DIR := src/
 
 AVOID_UB ?= 1
 
-UGEN_DEBUG = 0
+UGEN_DEBUG = 1
 
 CC := mips-linux-gnu-gcc
 CFLAGS := -fPIC -I src -mips2 -mfp32 -ggdb3

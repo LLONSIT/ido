@@ -12,7 +12,7 @@ var
 begin
     i := temps;
     while (i <> nil) do begin
-        if ((arg0 = i^.unk0) and (i^.unk4 = false)) then begin
+        if ((arg0 = i^.unk0) and (i^.flg = false)) then begin
             return i;
         end;
             i := i^.unk10;
@@ -46,11 +46,47 @@ var
 begin
     i := temps;
     while (i <> nil) do begin
-        if ((i^.unk4) and (arg0 = i^.unk8)) then begin
-            i^.unk4 := false;
+        if ((i^.flg) and (arg0 = i^.unk8)) then begin
+            i^.flg := false;
             return i;
         end;
         i := i^.unk10
     end;
     return nil;
+end;
+
+procedure free_temp(t: s8); {Guess}
+var
+     tP: ^temp;
+begin
+    tP := lookup_temp(t);
+    if (tP = nil) then begin
+        report_error(16#4, 16#C0, "temporary not found", "tmp_mgr.p");
+        return;
+    end;
+    tP^.flg := true;
+end;
+
+function temp_offset(arg0: s8): integer;
+var
+    temp_v0: ^temp;
+begin
+    temp_v0 := lookup_temp(arg0);
+    if (temp_v0 = nil) then begin
+        report_error(16#4, 16#CC, "temporary not found", "temp_mgr.p");
+    end else begin
+        return temp_v0^.unkC;
+    end;
+end;
+
+function temp_usage_count(arg0: s8): u16;
+var
+    temp_v0: ^temp;
+begin
+    temp_v0 := lookup_temp(arg0);
+    if (temp_v0 = nil) then begin
+        report_error(16#4, 16#D8, "temporary not found", "temp_mgr.p");
+    end else begin
+    return temp_v0^.unk2;
+    end;
 end;
