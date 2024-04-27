@@ -589,38 +589,7 @@ glabel basicint
 
     .balign 4
 # 1002129C
-glabel debug_ugen
-    # 004147EC emit_rob
-    # 00414B14 emit_rab
-    # 00414E38 emit_rrab
-    # 0041514C emit_rllb
-    # 00415494 emit_ra
-    # 00415764 emit_ri_
-    # 00415A80 emit_rfi
-    # 00415FDC emit_rrfi
-    # 00416278 emit_rrr
-    # 00416580 emit_rri_
-    # 0041687C emit_rrri
-    # 00416B70 emit_rr
-    # 00416DFC emit_a
-    # 0041705C emit_r
-    # 004172AC emit_i
-    # 004174CC emit_rrl
-    # 0041777C emit_rrll
-    # 00417A44 emit_rl
-    # 00417CB8 emit_rll
-    # 00417F44 emit_l
-    # 00418150 emit_ll
-    # 00418374 emit_ril
-    # 0041860C emit_rill
-    # 0042BDAC eval
-    # 0043D690 report_error
-    # 0044BF18 main
-    .space 4
-    .size debug_ugen, 4
-    .type debug_ugen, @object
 
-    .balign 4
 # 100212A0
 glabel pic_level
     # 004193FC emit_dir_ll
@@ -992,16 +961,6 @@ glabel aframe_pointer
     .type aframe_pointer, @object
 
     .balign 4
-# 10021330
-glabel frame_size
-    # 0042BDAC eval
-    # 004350E0 frame_offset
-    # 00435134 frame_offset1
-    .space 4
-    .size frame_size, 4
-    .type frame_size, @object
-
-    .balign 4
 # 10021334
 glabel use_real_fp_for_all
     # 0042BDAC eval
@@ -1031,26 +990,6 @@ glabel home_vararg_reg
     .space 4
     .size home_vararg_reg, 4
     .type home_vararg_reg, @object
-
-    .balign 4
-# 10021340
-glabel reversed_stack
-    # 0040EC54 func_0040EC54
-    # 0040F0B8 func_0040F0B8
-    # 0040F4C8 build_tree
-    # 00420810 gen_entry_exit
-    # 00421170 gen_entry
-    # 00421564 home_parameters
-    # 004219E8 gen_reg_save_restore
-    # 00422764 gen_reg_save
-    # 00424934 restore_from_temp
-    # 0042BDAC eval
-    # 004350E0 frame_offset
-    # 00435134 frame_offset1
-    # 00440EA0 gen_store
-    .space 4
-    .size reversed_stack, 4
-    .type reversed_stack, @object
 
     .balign 4
 # 10021344
@@ -1295,3 +1234,6 @@ glabel source_file_name
 
 .text
 )"");
+
+
+

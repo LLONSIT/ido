@@ -7,6 +7,11 @@
 int __Argc;
 char **__Argv;
 
+#define false 0
+#define true 1
+
+unsigned char debug_ugen = false;
+
 double _atod(const char *str) {
     return atof(str);
 }

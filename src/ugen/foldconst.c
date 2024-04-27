@@ -250,40 +250,6 @@ void warning(const char *warning_message) {
         fprintf(stderr, "ugen: warning: line %d: %s\n", current_line, warning_message);
     }
 }
-#if 0
-glabel warning
-    .ent warning
-    # 0040AF4C fold_constant
-/* 0040ADA0 3C1C0FC1 */  .cpload $t9
-/* 0040ADA4 279C4CB0 */  
-/* 0040ADA8 0399E021 */  
-/* 0040ADAC 8F8E8964 */  lw     $t6, %got(print_warnings)($gp)
-/* 0040ADB0 27BDFFE0 */  addiu $sp, $sp, -0x20
-/* 0040ADB4 AFBF001C */  sw    $ra, 0x1c($sp)
-/* 0040ADB8 8DCE0000 */  lw    $t6, ($t6)
-/* 0040ADBC AFBC0018 */  sw    $gp, 0x18($sp)
-/* 0040ADC0 00803825 */  move  $a3, $a0
-/* 0040ADC4 51C0000B */  beql  $t6, $zero, .L0040ADF4
-/* 0040ADC8 8FBF001C */   lw    $ra, 0x1c($sp)
-/* 0040ADCC 8F998078 */  lw    $t9, %call16(fprintf)($gp)
-/* 0040ADD0 8F848050 */  lw     $a0, %got(__iob)($gp)
-/* 0040ADD4 8F858038 */  lw    $a1, %got(RO_100081E0)($gp)
-/* 0040ADD8 8F868968 */  lw     $a2, %got(current_line)($gp)
-/* 0040ADDC 24840020 */  addiu $a0, $a0, 0x20
-/* 0040ADE0 24A581E0 */  addiu $a1, %lo(RO_100081E0) # addiu $a1, $a1, -0x7e20
-/* 0040ADE4 0320F809 */  jalr  $t9
-/* 0040ADE8 8CC60000 */   lw    $a2, ($a2)
-/* 0040ADEC 8FBC0018 */  lw    $gp, 0x18($sp)
-/* 0040ADF0 8FBF001C */  lw    $ra, 0x1c($sp)
-.L0040ADF4:
-/* 0040ADF4 27BD0020 */  addiu $sp, $sp, 0x20
-/* 0040ADF8 03E00008 */  jr    $ra
-/* 0040ADFC 00000000 */   nop   
-    .type warning, @function
-    .size warning, .-warning
-    .end warning
-#endif
-
 __asm__(R""(
 .set noat
 .set noreorder

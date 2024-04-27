@@ -364,39 +364,6 @@ glabel restricted_fp_regs
 .set noreorder # don't insert nops after branches
 
 .text
-glabel clear_restricted_regs
-    .ent clear_restricted_regs
-/* 00439850 3C1C0FBE */  .cpload $t9
-/* 00439854 279C6200 */  
-/* 00439858 0399E021 */  
-/* 0043985C 8F818BC4 */  lw     $at, %got(restricted_regs)($gp)
-/* 00439860 8F838BC4 */  lw     $v1, %got(restricted_regs)($gp)
-/* 00439864 8F848BC8 */  lw     $a0, %got(restricted_fp_regs)($gp)
-/* 00439868 AC200000 */  sw    $zero, ($at)
-/* 0043986C 8F818BC8 */  lw     $at, %got(restricted_fp_regs)($gp)
-/* 00439870 8F828BC8 */  lw     $v0, %got(restricted_fp_regs)($gp)
-/* 00439874 24630004 */  addiu $v1, $v1, 4
-/* 00439878 24840004 */  addiu $a0, $a0, 4
-/* 0043987C AC200000 */  sw    $zero, ($at)
-/* 00439880 24420124 */  addiu $v0, $v0, 0x124
-.L00439884:
-/* 00439884 24840010 */  addiu $a0, $a0, 0x10
-/* 00439888 AC600000 */  sw    $zero, ($v1)
-/* 0043988C AC80FFF0 */  sw    $zero, -0x10($a0)
-/* 00439890 AC600004 */  sw    $zero, 4($v1)
-/* 00439894 AC80FFF4 */  sw    $zero, -0xc($a0)
-/* 00439898 AC600008 */  sw    $zero, 8($v1)
-/* 0043989C AC80FFF8 */  sw    $zero, -8($a0)
-/* 004398A0 AC60000C */  sw    $zero, 0xc($v1)
-/* 004398A4 AC80FFFC */  sw    $zero, -4($a0)
-/* 004398A8 1482FFF6 */  bne   $a0, $v0, .L00439884
-/* 004398AC 24630010 */   addiu $v1, $v1, 0x10
-/* 004398B0 03E00008 */  jr    $ra
-/* 004398B4 00000000 */   nop   
-    .type clear_restricted_regs, @function
-    .size clear_restricted_regs, .-clear_restricted_regs
-    .end clear_restricted_regs
-
 glabel add_restricted_reg
     .ent add_restricted_reg
 /* 004398B8 3C1C0FBE */  .cpload $t9
@@ -541,20 +508,6 @@ glabel find_non_special_reg
     .type find_non_special_reg, @function
     .size find_non_special_reg, .-find_non_special_reg
     .end find_non_special_reg
-
-glabel get_reg_kind
-    .ent get_reg_kind
-/* 00439A94 3C1C0FBE */  .cpload $t9
-/* 00439A98 279C5FBC */  
-/* 00439A9C 0399E021 */  
-/* 00439AA0 8F8E88F0 */  lw     $t6, %got(kind_tab)($gp)
-/* 00439AA4 AFA40000 */  sw    $a0, ($sp)
-/* 00439AA8 008E7821 */  addu  $t7, $a0, $t6
-/* 00439AAC 03E00008 */  jr    $ra
-/* 00439AB0 91E20000 */   lbu   $v0, ($t7)
-    .type get_reg_kind, @function
-    .size get_reg_kind, .-get_reg_kind
-    .end get_reg_kind
 
 glabel kind_of_register
     .ent kind_of_register
@@ -968,23 +921,6 @@ glabel copy_reg
     .type copy_reg, @function
     .size copy_reg, .-copy_reg
     .end copy_reg
-
-glabel list_is_empty
-    .ent list_is_empty
-    # 0043A45C append_to_list
-    # 0043A5E8 spill
-    # 0043B854 get_one_free_reg
-    # 0043BAA8 get_free_fp_reg
-    # 0043CE54 check_no_used
-    # 0043D1A4 get_free_fp_reg_special
-    # 0043D3F8 get_free_reg_special
-/* 0043A010 90820000 */  lbu   $v0, ($a0)
-/* 0043A014 38420048 */  xori  $v0, $v0, 0x48
-/* 0043A018 03E00008 */  jr    $ra
-/* 0043A01C 2C420001 */   sltiu $v0, $v0, 1
-    .type list_is_empty, @function
-    .size list_is_empty, .-list_is_empty
-    .end list_is_empty
 
 glabel dump_reg
     .ent dump_reg

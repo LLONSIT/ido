@@ -852,8 +852,8 @@ glabel emit_vers
     .ent emit_vers
     # 0044BF18 main
 /* 00414774 3C1C0FC1 */  .cpload $t9
-/* 00414778 279CB2DC */  
-/* 0041477C 0399E021 */  
+/* 00414778 279CB2DC */
+/* 0041477C 0399E021 */
 /* 00414780 8F848984 */  lw     $a0, %got(d_ptr)($gp)
 /* 00414784 8F838978 */  lw     $v1, %got(ibuffer)($gp)
 /* 00414788 240A0007 */  li    $t2, 7

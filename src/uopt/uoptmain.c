@@ -501,6 +501,7 @@ void oneproc(void) {
     heapptr = alloc_mark(&perm_heap);
 }
 
+
 int main1(int argc, char *argv[]) {
     timer = getclock();
     optinit();

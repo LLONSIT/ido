@@ -313,20 +313,6 @@ D_1001255C:
 .set noreorder # don't insert nops after branches
 
 .text
-glabel set_domtag
-    .ent set_domtag
-    # 0044BF18 main
-/* 0040E0B0 3C1C0FC1 */  .cpload $t9
-/* 0040E0B4 279C19A0 */  
-/* 0040E0B8 0399E021 */  
-/* 0040E0BC 8F818A84 */  lw     $at, %got(domtag)($gp)
-/* 0040E0C0 AFA40000 */  sw    $a0, ($sp)
-/* 0040E0C4 03E00008 */  jr    $ra
-/* 0040E0C8 A0240000 */   sb    $a0, ($at)
-    .type set_domtag, @function
-    .size set_domtag, .-set_domtag
-    .end set_domtag
-
 glabel get_domtag
     .ent get_domtag
     # 0042BDAC eval
@@ -341,46 +327,12 @@ glabel get_domtag
     .size get_domtag, .-get_domtag
     .end get_domtag
 
-glabel search_label
-    .ent search_label
-    # 0040F4C8 build_tree
-/* 0040E0E4 3C1C0FC1 */  .cpload $t9
-/* 0040E0E8 279C196C */  
-/* 0040E0EC 0399E021 */  
-/* 0040E0F0 240100FD */  li    $at, 253
-/* 0040E0F4 0081001B */  divu  $zero, $a0, $at
-/* 0040E0F8 00007010 */  mfhi  $t6
-/* 0040E0FC 05C10002 */  bgez  $t6, .L0040E108
-/* 0040E100 00000000 */   nop   
-/* 0040E104 21CE00FD */  addi  $t6, $t6, 0xfd
-.L0040E108:
-/* 0040E108 8F998BD0 */  lw     $t9, %got(label_hash_table)($gp)
-/* 0040E10C 31CF00FF */  andi  $t7, $t6, 0xff
-/* 0040E110 000FC080 */  sll   $t8, $t7, 2
-/* 0040E114 03194021 */  addu  $t0, $t8, $t9
-/* 0040E118 8D030000 */  lw    $v1, ($t0)
-/* 0040E11C 10600007 */  beqz  $v1, .L0040E13C
-/* 0040E120 00000000 */   nop   
-/* 0040E124 8C690024 */  lw    $t1, 0x24($v1)
-.L0040E128:
-/* 0040E128 10890004 */  beq   $a0, $t1, .L0040E13C
-/* 0040E12C 00000000 */   nop   
-/* 0040E130 8C630000 */  lw    $v1, ($v1)
-/* 0040E134 5460FFFC */  bnel  $v1, $zero, .L0040E128
-/* 0040E138 8C690024 */   lw    $t1, 0x24($v1)
-.L0040E13C:
-/* 0040E13C 03E00008 */  jr    $ra
-/* 0040E140 00601025 */   move  $v0, $v1
-    .type search_label, @function
-    .size search_label, .-search_label
-    .end search_label
-
 glabel find_label
     .ent find_label
     # 0040F4C8 build_tree
 /* 0040E144 3C1C0FC1 */  .cpload $t9
-/* 0040E148 279C190C */  
-/* 0040E14C 0399E021 */  
+/* 0040E148 279C190C */
+/* 0040E14C 0399E021 */
 /* 0040E150 240100FD */  li    $at, 253
 /* 0040E154 0081001B */  divu  $zero, $a0, $at
 /* 0040E158 27BDFFD0 */  addiu $sp, $sp, -0x30
@@ -397,7 +349,7 @@ glabel find_label
 /* 0040E180 03193021 */  addu  $a2, $t8, $t9
 /* 0040E184 8CC30000 */  lw    $v1, ($a2)
 /* 0040E188 10600009 */  beqz  $v1, .L0040E1B0
-/* 0040E18C 00000000 */   nop   
+/* 0040E18C 00000000 */   nop
 /* 0040E190 8C680024 */  lw    $t0, 0x24($v1)
 .L0040E194:
 /* 0040E194 54A80004 */  bnel  $a1, $t0, .L0040E1A8
@@ -427,33 +379,10 @@ glabel find_label
 /* 0040E1E8 8FBF001C */  lw    $ra, 0x1c($sp)
 /* 0040E1EC 27BD0030 */  addiu $sp, $sp, 0x30
 /* 0040E1F0 03E00008 */  jr    $ra
-/* 0040E1F4 00000000 */   nop   
+/* 0040E1F4 00000000 */   nop
     .type find_label, @function
     .size find_label, .-find_label
     .end find_label
-
-glabel init_build
-    .ent init_build
-    # 0044BF18 main
-/* 0040E1F8 3C1C0FC1 */  .cpload $t9
-/* 0040E1FC 279C1858 */  
-/* 0040E200 0399E021 */  
-/* 0040E204 8F9987E8 */  lw    $t9, %call16(new)($gp)
-/* 0040E208 27BDFFE0 */  addiu $sp, $sp, -0x20
-/* 0040E20C AFBF001C */  sw    $ra, 0x1c($sp)
-/* 0040E210 AFBC0018 */  sw    $gp, 0x18($sp)
-/* 0040E214 24040400 */  li    $a0, 1024
-/* 0040E218 0320F809 */  jalr  $t9
-/* 0040E21C 00002825 */   move  $a1, $zero
-/* 0040E220 8FBC0018 */  lw    $gp, 0x18($sp)
-/* 0040E224 8FBF001C */  lw    $ra, 0x1c($sp)
-/* 0040E228 8F818A80 */  lw     $at, %got(strp)($gp)
-/* 0040E22C 27BD0020 */  addiu $sp, $sp, 0x20
-/* 0040E230 03E00008 */  jr    $ra
-/* 0040E234 AC220000 */   sw    $v0, ($at)
-    .type init_build, @function
-    .size init_build, .-init_build
-    .end init_build
 
     .type func_0040E238, @function
 func_0040E238:
@@ -483,6 +412,7 @@ func_0040E24C:
 /* 0040E278 03E00008 */  jr    $ra
 /* 0040E27C AC44EBA4 */   sw    $a0, -0x145c($v0)
 
+#Already decompiled!!
     .type func_0040E280, @function
 func_0040E280:
     # 0040F4C8 build_tree
@@ -490,7 +420,7 @@ func_0040E280:
 /* 0040E284 AC850008 */  sw    $a1, 8($a0)
 /* 0040E288 8CA30008 */  lw    $v1, 8($a1)
 /* 0040E28C 10600005 */  beqz  $v1, .L0040E2A4
-/* 0040E290 00000000 */   nop   
+/* 0040E290 00000000 */   nop
 /* 0040E294 00602825 */  move  $a1, $v1
 .L0040E298:
 /* 0040E298 8C630008 */  lw    $v1, 8($v1)
@@ -630,8 +560,8 @@ func_0040E2AC:
 func_0040E474:
     # 0040F4C8 build_tree
 /* 0040E474 3C1C0FC1 */  .cpload $t9
-/* 0040E478 279C15DC */  
-/* 0040E47C 0399E021 */  
+/* 0040E478 279C15DC */
+/* 0040E47C 0399E021 */
 /* 0040E480 27BDFFA8 */  addiu $sp, $sp, -0x58
 /* 0040E484 AFBF001C */  sw    $ra, 0x1c($sp)
 /* 0040E488 AFBC0018 */  sw    $gp, 0x18($sp)
@@ -651,7 +581,7 @@ func_0040E474:
 /* 0040E4B8 8F390000 */  lw    $t9, ($t9)
 /* 0040E4BC 03191023 */  subu  $v0, $t8, $t9
 /* 0040E4C0 04410002 */  bgez  $v0, .L0040E4CC
-/* 0040E4C4 00000000 */   nop   
+/* 0040E4C4 00000000 */   nop
 /* 0040E4C8 00021023 */  negu  $v0, $v0
 .L0040E4CC:
 /* 0040E4CC 04410003 */  bgez  $v0, .L0040E4DC
@@ -701,7 +631,7 @@ func_0040E474:
 /* 0040E568 8C2C8BE0 */  lw    $t4, %lo(jtbl_10008BE0)($at)
 /* 0040E56C 019C6021 */  addu  $t4, $t4, $gp
 /* 0040E570 01800008 */  jr    $t4
-/* 0040E574 00000000 */   nop   
+/* 0040E574 00000000 */   nop
 .L0040E578:
 /* 0040E578 920E0021 */  lbu   $t6, 0x21($s0)
 /* 0040E57C 8E18002C */  lw    $t8, 0x2c($s0)
@@ -729,7 +659,7 @@ func_0040E474:
 /* 0040E5D0 91590000 */   lbu   $t9, ($t2)
 /* 0040E5D4 8C4F0008 */  lw    $t7, 8($v0)
 /* 0040E5D8 108F005C */  beq   $a0, $t7, .L0040E74C
-/* 0040E5DC 00000000 */   nop   
+/* 0040E5DC 00000000 */   nop
 .L0040E5E0:
 /* 0040E5E0 91590000 */  lbu   $t9, ($t2)
 .L0040E5E4:
@@ -740,7 +670,7 @@ func_0040E474:
 /* 0040E5F4 8C4C0008 */  lw    $t4, 8($v0)
 /* 0040E5F8 008C082A */  slt   $at, $a0, $t4
 /* 0040E5FC 10200002 */  beqz  $at, .L0040E608
-/* 0040E600 00000000 */   nop   
+/* 0040E600 00000000 */   nop
 /* 0040E604 00806025 */  move  $t4, $a0
 .L0040E608:
 /* 0040E608 1000000B */  b     .L0040E638
@@ -764,7 +694,7 @@ func_0040E474:
 /* 0040E644 01817024 */  and   $t6, $t4, $at
 /* 0040E648 00CE7804 */  sllv  $t7, $t6, $a2
 /* 0040E64C 05E0003F */  bltz  $t7, .L0040E74C
-/* 0040E650 00000000 */   nop   
+/* 0040E650 00000000 */   nop
 /* 0040E654 1000003D */  b     .L0040E74C
 /* 0040E658 A0460001 */   sb    $a2, 1($v0)
 .L0040E65C:
@@ -781,7 +711,7 @@ func_0040E474:
 /* 0040E684 914E0000 */   lbu   $t6, ($t2)
 /* 0040E688 8C4C0008 */  lw    $t4, 8($v0)
 /* 0040E68C 108C002F */  beq   $a0, $t4, .L0040E74C
-/* 0040E690 00000000 */   nop   
+/* 0040E690 00000000 */   nop
 .L0040E694:
 /* 0040E694 914E0000 */  lbu   $t6, ($t2)
 .L0040E698:
@@ -812,7 +742,7 @@ func_0040E474:
 /* 0040E6E8 01C17824 */  and   $t7, $t6, $at
 /* 0040E6EC 00CFC004 */  sllv  $t8, $t7, $a2
 /* 0040E6F0 07000016 */  bltz  $t8, .L0040E74C
-/* 0040E6F4 00000000 */   nop   
+/* 0040E6F4 00000000 */   nop
 /* 0040E6F8 10000014 */  b     .L0040E74C
 /* 0040E6FC A0460001 */   sb    $a2, 1($v0)
 .L0040E700:
@@ -903,16 +833,16 @@ func_0040E474:
 /* 0040E824 24040001 */   li    $a0, 1
 /* 0040E828 2401007B */  li    $at, 123
 /* 0040E82C 1041FF20 */  beq   $v0, $at, .L0040E4B0
-/* 0040E830 00000000 */   nop   
+/* 0040E830 00000000 */   nop
 /* 0040E834 10000007 */  b     .L0040E854
-/* 0040E838 00000000 */   nop   
+/* 0040E838 00000000 */   nop
 .L0040E83C:
 /* 0040E83C 24010047 */  li    $at, 71
 /* 0040E840 1041FFCB */  beq   $v0, $at, .L0040E770
-/* 0040E844 00000000 */   nop   
+/* 0040E844 00000000 */   nop
 /* 0040E848 24010052 */  li    $at, 82
 /* 0040E84C 1041FF18 */  beq   $v0, $at, .L0040E4B0
-/* 0040E850 00000000 */   nop   
+/* 0040E850 00000000 */   nop
 .L0040E854:
 /* 0040E854 8F998808 */  lw    $t9, %call16(caseerror)($gp)
 /* 0040E858 8F868038 */  lw    $a2, %got(RO_10008BD0)($gp)
@@ -927,7 +857,7 @@ func_0040E474:
 /* 0040E874 8FB00014 */  lw    $s0, 0x14($sp)
 /* 0040E878 27BD0058 */  addiu $sp, $sp, 0x58
 /* 0040E87C 03E00008 */  jr    $ra
-/* 0040E880 00000000 */   nop   
+/* 0040E880 00000000 */   nop
 
     .type func_0040E884, @function
 func_0040E884:
